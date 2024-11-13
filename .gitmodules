@@ -1,0 +1,9 @@
+[submodule "YuanZe_University"]
+	path = YuanZe_University
+	url = https://github.com/tim86101/Timing-Aware-Fill-Insertion
+[submodule "ZhihaoLin"]
+	path = ZhihaoLin
+	url = https://github.com/zhihao-lin/Timing-Aware-Fill-Insertion.git
+[submodule "NationalTaiwan_University"]
+	path = NationalTaiwan_University
+	url = https://github.com/wayne1204/ICCAD-contest
