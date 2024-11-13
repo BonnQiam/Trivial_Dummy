@@ -1,3 +1,4 @@
+//! When needed to compile, rename the file to main.cpp
 #include <iostream>
 #include <vector>
 #include <iterator>
