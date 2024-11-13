@@ -1,9 +1,17 @@
 # General ignores
-.txt
-.log
+*.txt
+*.log
 build
 log
 
 # Specific ignores
 Benchmark/ICCAD_2014
 Benchmark/ICCAD_2018
+
+DFI/bench
+DFI/result
+DFI/scores
+DFI/evaluate
+DFI/release-eval.sh
+DFI/release.sh
+DFI/UFO
