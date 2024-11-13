@@ -1,10 +1,13 @@
 # General ignores
 *.txt
 *.log
+*.gds
 build
 log
 
 # Specific ignores
+settings.json
+
 Benchmark/ICCAD_2014
 Benchmark/ICCAD_2018
 
