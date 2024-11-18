@@ -21,6 +21,10 @@
 #define OVERLAP_none    4   // e1 and e2 are not overlapped
 
 
+#define GDS2_READ_DECOMPOSITION 0
+#define GRID 1
+
+
 /***************************************************************
  *           Edge and Polygon_edge_collection Definition
  * *************************************************************
@@ -50,6 +54,32 @@ struct Polygon_edge_collection
 
         // remove the duplicate vertices
         vertices.erase(std::unique(vertices.begin(), vertices.end()), vertices.end());
+    }
+
+    void vertices_2_edges()
+    {
+        edges.clear();
+        for(auto iter = vertices.begin(); iter != vertices.end(); iter++)
+        {
+            if(std::next(iter) == vertices.end()){
+                edges.push_back(edge<T>(*iter, vertices.front()));
+                break;
+            }
+            edges.push_back(edge<T>(*iter, *std::next(iter)));
+        }
+    }
+
+    //constructor
+    Polygon_edge_collection(std::vector< Coor<T> >& Polygon_vertices)
+    {
+        // move Polygon_vertices to vertices
+        vertices.assign(Polygon_vertices.begin(), Polygon_vertices.end());
+    }
+
+    Polygon_edge_collection(std::vector< edge<T> >& Polygon_edges)
+    {
+        // move Polygon_edges to edges
+        edges.assign(Polygon_edges.begin(), Polygon_edges.end());
     }
 };
 
@@ -96,8 +126,19 @@ void sort_edge(edge<T>& e, int type)
  * *************************************************************
  */
 
+#if GDS2_READ_DECOMPOSITION
+
 template <typename T>
 void Edge_based_decomposition(const std::vector< Coor<T> >& polygon, std::vector< Rect<T> >& result);
+
+#endif
+
+#if GRID
+
+template <typename T>
+void Edge_based_decomposition(Polygon_edge_collection<T>& Polygon_edges, std::vector< Rect<T> >& result);
+
+#endif
 
 // Edge_based_decomposition requires the following functions
 template <typename T>
@@ -126,11 +167,24 @@ int after_overlapped(edge<T>& e1, edge<T>& e2);
  * *************************************************************
  */
 
+#if GDS2_READ_DECOMPOSITION
 
 template <typename T, typename const_iterator>
-void Edge_based_decomposition(const const_iterator& first, const const_iterator& last, 
-                    std::vector< Rect<T> >& result)
+void Edge_based_decomposition(const const_iterator& first, const const_iterator& last, std::vector< Rect<T> >& result)
+
+#endif
+
+#if GRID
+
+template <typename T>
+void Edge_based_decomposition(Polygon_edge_collection<T>& Polygon_edges, std::vector< Rect<T> >& result)
+
+#endif
+
 {
+
+#if GDS2_READ_DECOMPOSITION
+
     result.clear();
     std::vector< Coor<T> > polygon(first, last);
     //establish the Polygon_edge_collection
@@ -141,6 +195,22 @@ void Edge_based_decomposition(const const_iterator& first, const const_iterator&
         Polygon_edges.edges.push_back(edge<T>(*it, *next));
     }
     Polygon_edges.edges_2_vertices();
+
+#endif
+
+
+#if GRID
+
+    result.clear();
+
+    if(Polygon_edges.edges.size() == 0){
+        Polygon_edges.vertices_2_edges();
+    }
+    else if(Polygon_edges.vertices.size() == 0){
+        Polygon_edges.edges_2_vertices();
+    }
+
+#endif
 
 #if 0
     //display the edges

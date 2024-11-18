@@ -24,6 +24,9 @@ public:
 
     inline const Coor<T>& getBL() const { return bl; }
     inline const Coor<T>& getTR() const { return tr; }
+    inline const Coor<T>& getTL() const { return Coor<T>(bl.getX(), tr.getY()); }
+    inline const Coor<T>& getBR() const { return Coor<T>(tr.getX(), bl.getY()); }
+
     inline const T& getW() const 		{ return width; }
     inline const T& getH() const		{ return height; }
 
@@ -144,6 +147,28 @@ void Rect<T>::shiftY(const T val)
 {
     bl.addToY(val);
     tr.addToY(val);
+}
+
+// return intersection reactangle of two Rectangle
+template <typename T>
+Rect<T> Rectangle_intersection(const Rect<T>& r1, const Rect<T>& r2)
+{
+    // Check intersection
+    Coor<T> tl(std::max(r1.getTL().getX(), r2.getTL().getX()), 
+                std::min(r1.getTL().getY(), r2.getTL().getY()));
+                
+    Coor<T> br(std::min(r1.getBR().getX(), r2.getBR().getX()), 
+                std::max(r1.getBR().getY(), r2.getBR().getY()));
+
+    //check if the intersection is valid
+    if(tl.getX() > br.getX() || tl.getY() < br.getY())
+        return Rect<T>(Coor<T>(0, 0), Coor<T>(0, 0));
+
+    // return intersection rectangle
+    Coor<T> bl(tl.getX(), br.getY());
+    Coor<T> tr(br.getX(), tl.getY());
+    
+    return Rect<T>(bl, tr);
 }
 
 #endif
