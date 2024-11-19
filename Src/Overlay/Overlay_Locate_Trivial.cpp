@@ -149,6 +149,9 @@ int main(int argc, char *argv[])
         end = clock();
         std::cout << "Scanning time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
 
+        std::cout << "Density is " << density << " for " << Count_grid << " grid" << std::endl;
+        std::cout << "===============================================================" << std::endl;
+
         start = clock();
         //std::cout << "Exectuing Edge_based_decomposition" << std::endl;
         Polygon_edge_collection<int> collection(Final_Edge_list);
@@ -156,9 +159,6 @@ int main(int argc, char *argv[])
         Edge_based_decomposition(collection, result);
         end = clock();
         std::cout << "Decomposition time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
-
-        std::cout << "Density is " << density << " for " << Count_grid << " grid" << std::endl;
-        std::cout << "===============================================================" << std::endl;
 
         // output the result to the file
         file3 << "<grid>" << std::endl;

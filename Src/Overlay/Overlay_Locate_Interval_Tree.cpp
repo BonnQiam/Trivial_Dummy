@@ -2,7 +2,7 @@
 * Input: two windows consist of rectangles
 * Output 1: the density of the intersection area of the two windows
 * Output 2: the overlay area of the two windows will be located by rectangles
-* Algorithm: using the interval tree
+* Algorithm: using the interval tree to the any two overlapped rectangles
 * Speed: fast
 */
 
@@ -14,6 +14,7 @@
 
 #define grid_size 20000
 
+// Just for Debug
 #define check_x_coordinate 13150
 #define check_y1_coordinate 34000
 #define check_y2_coordinate 34200

@@ -93,8 +93,8 @@ def WindowVisualize(index):
         # adjust the range of x/y axis        
         #plt.xlim(x_min, x_max)
         #plt.ylim(y_min, y_max)
-        plt.xlim(20000*1, 20000*2)
-        plt.ylim(20000*0, 20000*1)
+        plt.xlim(20000*0, 20000*1)
+        plt.ylim(20000*1, 20000*2)
         
         Area = 0
             

@@ -225,6 +225,8 @@ void Edge_based_decomposition(Polygon_edge_collection<T>& Polygon_edges, std::ve
     //for(int i=0; i<1; ++i)
     //for(int i=0; i<500; ++i)
     {
+        //std::cout << "edges.size() = " << Polygon_edges.edges.size() << std::endl;
+
         const auto& coor_tuple_X = findCoorTuple_X(Polygon_edges.vertices);
         const auto Pk_X = *(std::get<0>(coor_tuple_X));
         const auto Pl_X = *(std::get<1>(coor_tuple_X));
@@ -476,6 +478,12 @@ template <typename T>
 void edge_list_edge_complement(std::vector< edge<T> >& edge_list, 
                     edge<T> e2, int sort_type)
 {
+    // necessary cause of the edge_list is empty
+    if(edge_list.size() == 0){
+        edge_list.push_back(e2);
+        return;
+    }
+
     edges_sort<T>(edge_list, sort_type);
     // If the e2 overlap with some edges of edge_list, the overlapped parts of these edges should be removed, and the remaining parts (not exist in the edge_list) of e2 should be added into the edge_list.
     std::vector< edge<T> > add_edges;
