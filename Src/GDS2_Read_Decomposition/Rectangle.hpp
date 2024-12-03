@@ -24,8 +24,9 @@ public:
 
     inline const Coor<T>& getBL() const { return bl; }
     inline const Coor<T>& getTR() const { return tr; }
-    inline const Coor<T>& getTL() const { return Coor<T>(bl.getX(), tr.getY()); }
-    inline const Coor<T>& getBR() const { return Coor<T>(tr.getX(), bl.getY()); }
+    inline const Coor<T> getTL() const { return Coor<T>(bl.getX(), tr.getY()); }
+    inline const Coor<T> getBR() const { return Coor<T>(tr.getX(), bl.getY()); }
+    
 
     inline const T& getW() const 		{ return width; }
     inline const T& getH() const		{ return height; }
