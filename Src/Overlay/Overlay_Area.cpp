@@ -83,6 +83,9 @@ int main(int argc, char *argv[])
 
         double density = area / (grid_size * grid_size);
 
+        if(density == 0)
+            continue;
+
         end = clock();
         std::cout << "Scanning time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
 

@@ -77,7 +77,18 @@ void Debug_in_Grid(std::ifstream& file, int& count, std::ofstream& out)
 
     //check repeated rectangles based std::unique
     std::sort(rectangles.begin(), rectangles.end(), [](const Rect& a, const Rect& b){
-        return a.x1 < b.x1;
+        if(a.x1 != b.x1) 
+            return a.x1 < b.x1;
+        else{
+            if(a.y1 != b.y1)
+                return a.y1 < b.y1;
+            else{
+                if(a.x2 != b.x2)
+                    return a.x2 < b.x2;
+                else
+                    return a.y2 < b.y2;
+            }
+        }
     });
 
     auto last = std::unique(rectangles.begin(), rectangles.end(), [](const Rect& a, const Rect& b){
