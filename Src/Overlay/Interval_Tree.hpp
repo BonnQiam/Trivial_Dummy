@@ -8,48 +8,59 @@
 #include <cmath>
 #include <vector>
 
+#include "../GDS2_Read_Decomposition/ScanLine_Edge_Decomposition.hpp"
+
 #define FILEEND 1
 #define ACTIVE 1
 #define INACTIVE 0
 
-struct Rectangle {
-    int x_l, y_l;// left bottom point
-    int x_r, y_r;// right top point
-
-    int area(){
-        return (x_r - x_l) * (y_r - y_l);
-    };
+struct Rectangle_with_complement{
+    Rect<int> R;
+    std::vector<Rect<int>> Complement;
+    int area;
 };
 
 struct Interval {
     int x_start, x_end;
-//    int y;
-    int rectangle_y_start, rectangle_y_end;
-//    int type;
-    //int layer;
-};
-
-struct Edge{
-    Interval I;
     int y;
     int type;
     int layer;
+    Rectangle_with_complement* rect_with_complement;
 };
 
-Rectangle Overlap_Rectangle(Interval I1, Interval I2){
-    Rectangle R;
-    R.x_l = std::max(I1.x_start, I2.x_start);
-    R.x_r = std::min(I1.x_end, I2.x_end);
+void Rectanlges_2_Edges(std::vector<Rectangle_with_complement> &List_Rectangles, std::vector<Interval> &List_Edges, int layer){
+    for(int i = 0; i < List_Rectangles.size(); i++){
+        Interval interval1, interval2;
 
-    R.y_l = std::max(I1.rectangle_y_start, I2.rectangle_y_start);
-    R.y_r = std::min(I1.rectangle_y_end, I2.rectangle_y_end);
+        interval1.x_start = List_Rectangles[i].R.getBL().getX();
+        interval1.x_end = List_Rectangles[i].R.getTR().getX();
+        interval1.y = List_Rectangles[i].R.getBL().getY();
+        interval1.type = ACTIVE;
+        interval1.layer = layer;
+        interval1.rect_with_complement = &(List_Rectangles[i]);
+        List_Edges.push_back(interval1);
 
-    return R;
+        interval2.x_start = List_Rectangles[i].R.getBL().getX();
+        interval2.x_end = List_Rectangles[i].R.getTR().getX();
+        interval2.y = List_Rectangles[i].R.getTR().getY();
+        interval2.type = INACTIVE;
+        interval2.layer = layer;
+        interval2.rect_with_complement = &(List_Rectangles[i]);
+        List_Edges.push_back(interval2);
+    }
 }
 
 
+//struct Edge{
+//    Interval I;
+//    int y;
+//    int type;
+//    int layer;
+//};
+
 //int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals){
-int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int layer){
+//int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int layer){
+int LoadWindowData(std::ifstream &file, int layer,std::vector<Rectangle_with_complement> &List_Rectangles, double &Overall_area){
     // check if the file is at the end
     if (file.eof())
         return FILEEND;
@@ -62,6 +73,7 @@ int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int l
         if(line == "<grid>"){
             // read next line
             std::getline(file, line);
+            Overall_area = std::stod(line);
         }
         else{
             // check if line = '</grid>'
@@ -98,12 +110,15 @@ int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int l
 
             //Interval tmp1 = {x1, x2, y1, y1, y2, ACTIVE, layer};
             //Interval tmp2 = {x1, x2, y2, y1, y2, INACTIVE, layer};
-            Interval tmp = {x1, x2, y1, y2};
-            Edge tmp1 = {tmp, y1, ACTIVE, layer};
-            Edge tmp2 = {tmp, y2, INACTIVE, layer};
+            //Interval tmp = {x1, x2, y1, y2};
+            Rect<int> R(Coor<int>(x1, y1), Coor<int>(x2, y2));
+            List_Rectangles.push_back({R, {}, R.Area()});
 
-            List_Intervals.push_back(tmp1);
-            List_Intervals.push_back(tmp2);
+            //Interval tmp1 = {x1, x2, y1, ACTIVE, layer, &(List_Rectangles.back())};
+            //Interval tmp2 = {x1, x2, y2, INACTIVE, layer, &(List_Rectangles.back())};
+
+            //List_Intervals.push_back(tmp1);
+            //List_Intervals.push_back(tmp2);
         }
     }
 
@@ -261,13 +276,13 @@ public:
             //std::cout << "The interval is out of range" << std::endl;
             return 0;
         }
-
         // Delete I.start from the left endpoint list
         auto itr = CBT[index].Left_Endpoints.begin();
         //while(itr != CBT[index].Left_Endpoints.end() && (itr->x_start != I.x_start || itr->x_end != I.x_end)) {
         while(itr != CBT[index].Left_Endpoints.end()) {
             if(itr->x_start == I.x_start && itr->x_end == I.x_end &&
-                itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
+                itr->y == I.y && itr->layer == I.layer && itr->type == I.type && itr->rect_with_complement == I.rect_with_complement
+                //itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
             ){
                 break;
             }
@@ -282,7 +297,8 @@ public:
         //while(itr != CBT[index].Right_Endpoints.end() && (itr->x_end != I.x_end || itr->x_start != I.x_start)) {
         while(itr != CBT[index].Right_Endpoints.end()) {
             if(itr->x_start == I.x_start && itr->x_end == I.x_end &&
-                itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
+                itr->y == I.y && itr->layer == I.layer && itr->type == I.type && itr->rect_with_complement == I.rect_with_complement
+                //itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
             ){
                 break;
             }
