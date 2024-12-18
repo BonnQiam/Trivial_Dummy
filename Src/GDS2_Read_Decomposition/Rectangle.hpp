@@ -50,6 +50,8 @@ public:
     void shiftX(const T val);
     void shiftY(const T val);
 
+    void Roate_X2Y();
+
     T Area() const { return width * height; }
 };
 
@@ -148,6 +150,21 @@ void Rect<T>::shiftY(const T val)
 {
     bl.addToY(val);
     tr.addToY(val);
+}
+
+template <typename T>
+void Rect<T>::Roate_X2Y()
+{
+    T temp = width;
+    width = height;
+    height = temp;
+
+    //upate bl, tr
+    Coor<T> temp_coor = bl;
+    bl.set(temp_coor.getY(), temp_coor.getX());
+
+    temp_coor = tr;
+    tr.set(temp_coor.getY(), temp_coor.getX());
 }
 
 // return intersection reactangle of two Rectangle
