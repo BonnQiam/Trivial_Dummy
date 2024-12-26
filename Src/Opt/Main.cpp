@@ -1,159 +1,325 @@
 #include "util.hpp"
 #include "opt.hpp"
 
-int main(int argc, char* argv[]) {
-    if (argc < 1) {
+#include <time.h>
+#include <random>
+
+int main(int argc, char *argv[])
+{
+    /*
+     * ******************************************* Get the Input file
+     */
+    if (argc < 1)
+    {
         std::cerr << "Usage: " << argv[0] << " <filename>\n";
         return 1;
     }
 
     // Read filename from argv[1]
     std::string filename = argv[1];
+
+    std::cout << "Reading file: " << filename << '\n';
+
     std::ifstream file(filename);
 
     std::vector<std::string> Input;
 
-    if (!file) {
+    if (!file)
+    {
         std::cerr << "Could not open file: " << filename << '\n';
         exit(1);
     }
 
     std::string line;
-    while (std::getline(file, line)) {
+    while (std::getline(file, line))
+    {
         Input.push_back(line);
     }
 
-    //Test: display Input
-    for (int i = 0; i < Input.size(); i++) {
+    // Test: display Input
+    for (int i = 0; i < Input.size(); i++)
+    {
         std::cout << Input[i] << std::endl;
     }
-    
-    /**********************************
-     * 
-     * Read sM1.txt (in 'Benchmark' filefolder), grid.txt (in 'Grid' filefolder), overlay.txt (in 'Overlay' filefolder)
-     * 
-     * *******************************/
 
-    std::vector<Grid_Coor>  Grid_No_Fill;
-    std::vector<double>     Density_Metal;
-    parse_No_Fill_Density(Input[0], Grid_No_Fill, Density_Metal);
-    parse_No_Fill_Density(Input[1], Grid_No_Fill, Density_Metal);
-    parse_No_Fill_Density(Input[2], Grid_No_Fill, Density_Metal);
-
-    std::vector<double> Density_Fillable;
-    parse_Fillable_Density(Input[3], Density_Fillable);
-    parse_Fillable_Density(Input[4], Density_Fillable);
-    parse_Fillable_Density(Input[5], Density_Fillable);
+    /*
+     * ****************************************** Read the Grid info
+     */
+    std::vector<Grid_Coor> Grid_No_Fill;
+    std::vector<double> Metal;
+    std::vector<double> Dummy_Dummy_M1, Dummy_Wire_M1,
+        Dummy_Dummy_Dummy_M2, Dummy_Dummy_Wire_M2, Wire_Dummy_Dummy_M2, Wire_Dummy_Wire_M2,
+        Dummy_Dummy_M3, Wire_Dummy_M3;
 
     std::vector<double> Overlay;
-    parse_Overlay(Input[6], Overlay);
-    parse_Overlay(Input[7], Overlay);
 
-    int length = Grid_No_Fill.size();
-    int Num_grid = Grid_No_Fill.size()/3;
+    parse_No_Fill_Density(Input[0], Grid_No_Fill, Metal); // Layer 1 in 'Benchmark' filefolder
+    parse_No_Fill_Density(Input[1], Grid_No_Fill, Metal); // Layer 2  in 'Benchmark' filefolder
+    parse_No_Fill_Density(Input[2], Grid_No_Fill, Metal); // Layer 3  in 'Benchmark' filefolder
 
-    /**********************************
-     * 
-     * Solving
-     * 
-     * *******************************/
+    parse_Fillable_Density(Input[3], Dummy_Dummy_M1);
+    parse_Fillable_Density(Input[4], Dummy_Wire_M1);
 
-    typedef CPPAD_TESTVECTOR( double )      Dvector;
+    parse_Fillable_Density(Input[5], Dummy_Dummy_Dummy_M2);
+    parse_Fillable_Density(Input[6], Dummy_Dummy_Wire_M2);
+    parse_Fillable_Density(Input[7], Wire_Dummy_Dummy_M2);
+    parse_Fillable_Density(Input[8], Wire_Dummy_Wire_M2);
 
+    for (int i = 0; i < Dummy_Dummy_Dummy_M2.size(); i++)
+    {
+        Dummy_Dummy_M3.push_back(Dummy_Dummy_Dummy_M2[i] + Wire_Dummy_Dummy_M2[i]);
+    }
+
+    parse_Fillable_Density(Input[9], Wire_Dummy_M3);
+
+    Overlay = Dummy_Dummy_M1;
+    for (int i = 0; i < Dummy_Dummy_Dummy_M2.size(); i++)
+    {
+        Overlay.push_back(Dummy_Dummy_Dummy_M2[i] + Wire_Dummy_Dummy_M2[i]);
+    }
+
+    int Num_grid = Grid_No_Fill.size() / 3;
+
+    /*
+     * ******************************************* Opt problem definition and solving
+     */
+    typedef CPPAD_TESTVECTOR(double) Dvector;
     bool ok = true;
 
-    Dvector xi(length);
+    srand(time(NULL));
 
-    Dvector xl(length), xu(length);
-    for(int i = 0; i < length; i++)
-	{	
-        xl[i] = 0;
-		xu[i] = Density_Fillable[i];
-	}
+    int length = 2 * Num_grid + 4 * Num_grid + 2 * Num_grid;
+
+    Dvector xi(length), xl(length), xu(length);
+
+    int index = 0, offset = 0;
+    while (index < length)
+    {
+        if (index < Num_grid)
+        {
+            offset = 0;
+            xl[index] = 0.0;
+            xu[index] = Dummy_Dummy_M1[index - offset];
+        }
+        else if (index >= Num_grid && index < 2 * Num_grid)
+        {
+            offset = Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Dummy_Wire_M1[index - offset];
+
+        }
+        else if (index >= 2 * Num_grid && index < 3 * Num_grid)
+        {
+            offset = 2 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Dummy_Dummy_Dummy_M2[index - offset];
+        }
+        else if (index >= 3 * Num_grid && index < 4 * Num_grid)
+        {
+            offset = 3 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Dummy_Dummy_Wire_M2[index - offset];
+        }
+        else if (index >= 4 * Num_grid && index < 5 * Num_grid)
+        {
+            offset = 4 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Wire_Dummy_Dummy_M2[index - offset];
+        }
+        else if (index >= 5 * Num_grid && index < 6 * Num_grid)
+        {
+            offset = 5 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Wire_Dummy_Wire_M2[index - offset];
+        }
+        else if (index >= 6 * Num_grid && index < 7 * Num_grid)
+        {
+            offset = 6 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Dummy_Dummy_M3[index - offset];
+        }
+        else if (index >= 7 * Num_grid && index < 8 * Num_grid)
+        {
+            offset = 7 * Num_grid;
+            xl[index] = 0.0;
+            xu[index] = Wire_Dummy_M3[index - offset];
+        }
+        else if (index >= 8 * Num_grid)
+            break;
+
+        //random generte xi value between xl and xu
+        //xi[index] = xl[index] + (xu[index] - xl[index]) * rand() / (RAND_MAX + 1.0);
+        //xi[index] = xu[index];
+        index++;
+    }
 
     Dvector gl(1), gu(1);
-	gl[0] = 0.;     gu[0] = 0.;
+    gl[0] = 0.;
+    //gu[0] = 1.;
+    gu[0] = 1e-5;
+    //gu[0] = 1e-1;
+    //gu[0] = 0.5;
 
-    FG_eval fg_eval(Density_Metal, Overlay);
+    FG_eval fg_eval(Metal, Overlay, Num_grid);
+
+    std::cout << "Initializations done" << std::endl;
 
     std::string options;
-    //options += "String  sb           yes\n";
+    // options += "String  sb           yes\n";
     options += "String  jacobian_approximation exact\n";
     options += "String  hessian_approximation  limited-memory\n";
     options += "String  linear_solver  ma97\n";
-    options += "Integer max_iter     100\n";
+    options += "Integer max_iter     300\n";
     options += "Numeric tol          1e-6\n";
     //options += "String  derivative_test second-order\n";
     //options += "Numeric point_perturbation_radius  0.\n";
     //options += "Sparse  true forward\n";
+    //options += "Sparse  true reverse\n";
 
     CppAD::ipopt::solve_result<Dvector> solution;
     CppAD::ipopt::solve<Dvector, FG_eval>(
-		options, xi, xl, xu, gl, gu, fg_eval, solution
-	);
+        options, xi, xl, xu, gl, gu, fg_eval, solution);
 
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
-    
-    //for(int i=0; i<length; i++){
-    //    std::cout << "xi[" << i << "]: " << solution.x[i] << std::endl;
-    //}
 
-    /**********************************
-     * 
-     * Result
-     * 
-     * *******************************/
+    /*
+     * ******************************************* Metric - Overlay
+     */
+    double Overlay_12, Overlay_23 = 0.0;
+    for (int i = 0; i < Num_grid; i++)
+    {
+        Overlay_12 = (solution.x[i] + solution.x[i + 2 * Num_grid] + solution.x[i + 3 * Num_grid] - Overlay[i]) > 0 ? (solution.x[i] + solution.x[i + 2 * Num_grid] + solution.x[i + 3 * Num_grid] - Overlay[i]) : 0;
+        Overlay_12 += solution.x[i + Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 5 * Num_grid];
+
+        Overlay_23 = (solution.x[i + 2 * Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 6 * Num_grid] - Overlay[i + Num_grid]) > 0 ? (solution.x[i + 2 * Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 6 * Num_grid] - Overlay[i + Num_grid]) : 0;
+        Overlay_23 += solution.x[i + 3 * Num_grid] + solution.x[i + 5 * Num_grid] + solution.x[i + 7 * Num_grid];
+
+        Overlay_12 = Overlay_12 * Grid_size * Grid_size;
+        Overlay_23 = Overlay_23 * Grid_size * Grid_size;
+    }
+
+    double Overlay_metric = (1 - (Overlay_12 + Overlay_23) * Grid_size * Grid_size / beta_overlay) > 0 ? (1 - (Overlay_12 + Overlay_23) * Grid_size * Grid_size / beta_overlay) : 0;
+    std::cout << "Overlay_metric: " << Overlay_metric << std::endl;
+
+    /*
+     * ******************************************* Metric - Std
+     */
 
     double Sum1, Sum2, Sum3 = 0.0;
-    for(int i=0; i < (length/3); i++){
-        Sum1 += solution.x[i] + Density_Metal[i];
-        Sum2 += solution.x[i + (length/3)] + Density_Metal[i + (length/3)];
-        Sum3 += solution.x[i + 2*(length/3)] + Density_Metal[i + 2*(length/3)];
+
+    for (int i = 0; i < Num_grid; i++)
+    {
+        Sum1 += solution.x[i] + solution.x[i + Num_grid] + Metal[i];
+        Sum2 += solution.x[i + 2 * Num_grid] + solution.x[i + 3 * Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 5 * Num_grid] + Metal[i + Num_grid];
+        Sum3 += solution.x[i + 6 * Num_grid] + solution.x[i + 7 * Num_grid] + Metal[i + 2 * Num_grid];
     }
-    double Mean1 = Sum1/(length/3);
-    double Mean2 = Sum2/(length/3);
-    double Mean3 = Sum3/(length/3);
+
+    double Mean1 = Sum1 / Num_grid;
+    double Mean2 = Sum2 / Num_grid;
+    double Mean3 = Sum3 / Num_grid;
 
     double Std1, Std2, Std3 = 0.0;
-    for(int i=0; i < (length/3); i++){
-        Std1 += (solution.x[i] + Density_Metal[i] - Mean1)*(solution.x[i] + Density_Metal[i] - Mean1);
-        Std2 += (solution.x[i + (length/3)] + Density_Metal[i + (length/3)] - Mean2)*(solution.x[i + (length/3)] + Density_Metal[i + (length/3)] - Mean2);
-        Std3 += (solution.x[i + 2*(length/3)] + Density_Metal[i + 2*(length/3)] - Mean3)*(solution.x[i + 2*(length/3)] + Density_Metal[i + 2*(length/3)] - Mean3);
-    }
-    Std1 = sqrt(Std1/(length/3));
-    Std2 = sqrt(Std2/(length/3));
-    Std3 = sqrt(Std3/(length/3));
+    for (int i = 0; i < Num_grid; i++)
+    {
+        double Delta1 = solution.x[i] + solution.x[i + Num_grid] + Metal[i] - Mean1;
+        double Delta2 = solution.x[i + 2 * Num_grid] + solution.x[i + 3 * Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 5 * Num_grid] + Metal[i + Num_grid] - Mean2;
+        double Delta3 = solution.x[i + 6 * Num_grid] + solution.x[i + 7 * Num_grid] + Metal[i + 2 * Num_grid] - Mean3;
 
-    std::cout << "Std1: " << Std1 << std::endl;
-    std::cout << "Std2: " << Std2 << std::endl;
-    std::cout << "Std3: " << Std3 << std::endl;
-    std::cout << "Cost = " << Std1 + Std2 + Std3 << std::endl;
-
-    double Overlay1, Overlay2 = 0.0;
-    for(int i=0; i < (length/3); i++){
-        Overlay1 += ((solution.x[i] + solution.x[i + (length/3)] - Overlay[i])>0)?(solution.x[i] + solution.x[i + (length/3)] - Overlay[i]):0;
-        Overlay2 += ((solution.x[i + (length/3)] + solution.x[i + 2*(length/3)] - Overlay[i+ (length/3)])>0)?(solution.x[i + (length/3)] + solution.x[i + 2*(length/3)] - Overlay[i+ (length/3)]):0;
+        Std1 += Delta1 * Delta1;
+        Std2 += Delta2 * Delta2;
+        Std3 += Delta3 * Delta3;
     }
 
-    std::cout << "Overlay: " << ((Overlay1+Overlay2)*20*20) << std::endl;
+    Std1 = sqrt(Std1 / Num_grid);
+    Std2 = sqrt(Std2 / Num_grid);
+    Std3 = sqrt(Std3 / Num_grid);
 
-    // Ouput
-    std::ofstream Output_file_1("Grid_opt_Layer1.txt");//overal grid density
-    std::ofstream Output_file_2("Grid_opt_Layer2.txt");
-    std::ofstream Output_file_3("Grid_opt_Layer3.txt");
+    double Std_metric = (1 - (Std1 + Std2 + Std3) / beta_std) > 0 ? (1 - (Std1 + Std2 + Std3) / beta_std) : 0;
+    std::cout << "Std1 : " << Std1 << std::endl;
+    std::cout << "Std2 : " << Std2 << std::endl;
+    std::cout << "Std3 : " << Std3 << std::endl;
+    std::cout << "Std_metric: " << Std_metric << std::endl;
 
-    for (int i = 0; i < Num_grid; i++) {
-        double tmp1 = solution.x[i] + Density_Metal[i];
-        double tmp2 = solution.x[i + Num_grid] + Density_Metal[i + Num_grid];
-        double tmp3 = solution.x[i + 2*Num_grid] + Density_Metal[i + 2*Num_grid];
+    /*
+     * ******************************************* Metric - Outlier
+     */
+    double Outlier1, Outlier2, Outlier3 = 0.0;
 
-        Output_file_1 << Grid_No_Fill[i].x << " " << Grid_No_Fill[i].y << " " << tmp1 << " " << solution.x[i] << std::endl;
-        Output_file_2 << Grid_No_Fill[i + Num_grid].x << " " << Grid_No_Fill[i + Num_grid].y << " " << tmp2 << " " << solution.x[i + Num_grid] << std::endl;
-        Output_file_3 << Grid_No_Fill[i + 2*Num_grid].x << " " << Grid_No_Fill[i + 2*Num_grid].y << " " << tmp3 << " " << solution.x[i + 2*Num_grid] << std::endl;
+    for (int i = 0; i < Num_grid; i++)
+    {
+        double Grid1 = solution.x[i] + solution.x[i + Num_grid] + Metal[i];
+        double Grid2 = solution.x[i + 2 * Num_grid] + solution.x[i + 3 * Num_grid] + solution.x[i + 4 * Num_grid] + solution.x[i + 5 * Num_grid] + Metal[i + Num_grid];
+        double Grid3 = solution.x[i + 6 * Num_grid] + solution.x[i + 7 * Num_grid] + Metal[i + 2 * Num_grid];
+
+        Outlier1 += (fabs(Grid1 - Mean1) - 3 * Std1) > 0 ? (fabs(Grid1 - Mean1) - 3 * Std1) : 0;
+        Outlier2 += (fabs(Grid2 - Mean2) - 3 * Std2) > 0 ? (fabs(Grid2 - Mean2) - 3 * Std2) : 0;
+        Outlier3 += (fabs(Grid3 - Mean3) - 3 * Std3) > 0 ? (fabs(Grid3 - Mean3) - 3 * Std3) : 0;
     }
-    Output_file_1.close();
-    Output_file_2.close();
-    Output_file_3.close();
+
+    double Outlier_metric = (1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier) > 0 ? (1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier) : 0;
+    std::cout << "Outlier_metric: " << Outlier_metric << std::endl;
+
+    /*
+     * ******************************************* Metric - Line hotspot
+     */
+    double Line_Sum1, Line_Sum2, Line_Sum3 = 0.0;
+
+    for (int start_index = 0; start_index <= (x_grid_num - 1) * y_grid_num; start_index += y_grid_num)
+    {
+        double Line_Mean1, Line_Mean2, Line_Mean3 = 0.0;
+
+        for (int i = start_index; i < y_grid_num; i++)
+        {
+            Line_Mean1 += solution.x[start_index + i] + solution.x[start_index + i + Num_grid] + Metal[start_index + i];
+            Line_Mean2 += solution.x[start_index + i + 2 * Num_grid] + solution.x[start_index + i + 3 * Num_grid] + solution.x[start_index + i + 4 * Num_grid] + solution.x[start_index + i + 5 * Num_grid] + Metal[start_index + i + Num_grid];
+            Line_Mean3 += solution.x[start_index + i + 6 * Num_grid] + solution.x[start_index + i + 7 * Num_grid] + Metal[start_index + i + 2 * Num_grid];
+        }
+
+        Line_Mean1 = Line_Mean1 / y_grid_num;
+        Line_Mean2 = Line_Mean2 / y_grid_num;
+        Line_Mean3 = Line_Mean3 / y_grid_num;
+
+        for (int i = start_index; i < y_grid_num; i++)
+        {
+            Line_Sum1 += fabs(solution.x[start_index + i] + solution.x[start_index + i + Num_grid] + Metal[start_index + i] - Line_Mean1);
+            Line_Sum2 += fabs(solution.x[start_index + i + 2 * Num_grid] + solution.x[start_index + i + 3 * Num_grid] + solution.x[start_index + i + 4 * Num_grid] + solution.x[start_index + i + 5 * Num_grid] + Metal[start_index + i + Num_grid] - Line_Mean2);
+            Line_Sum3 += fabs(solution.x[start_index + i + 6 * Num_grid] + solution.x[start_index + i + 7 * Num_grid] + Metal[start_index + i + 2 * Num_grid] - Line_Mean3);
+        }
+    }
+
+    double Line_metric = (1 - (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line) > 0 ? (1 - (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line) : 0;
+    std::cout << "Line_metric: " << Line_metric << std::endl;
+    
+    double Total_score = alpha_std*Std_metric + alpha_outlier*Outlier_metric + alpha_overlay*Overlay_metric + alpha_line*Line_metric;
+
+    std::cout << "Total_score: " << Total_score << std::endl;
+
+#if 0
+    std::cout << "Corresponding Cost: " << 
+        //(Line_Sum1 + Line_Sum2 + Line_Sum3)/beta_line*alpha_line 
+        (Outlier1 + Outlier2 + Outlier3) / beta_outlier * alpha_outlier
+        << std::endl;
+#endif
+
+    /*
+     * ******************************************* Output
+     */
+
+    std::ofstream Output1("Gird_Opt_Layer_M1.txt");
+    std::ofstream Output2("Gird_Opt_Layer_M2.txt");
+    std::ofstream Output3("Gird_Opt_Layer_M3.txt");
+
+    for(int i=0; i<Num_grid; i++){
+        Output1 << solution.x[i] << " " << solution.x[i + Num_grid] << std::endl;
+        
+        Output2 << solution.x[i + 2*Num_grid] << " " << solution.x[i + 3*Num_grid] << " " << solution.x[i + 4*Num_grid] << " " << solution.x[i + 5*Num_grid] << std::endl;
+
+        Output3 << solution.x[i + 6*Num_grid] << " " << solution.x[i + 7*Num_grid] << std::endl;
+    }
+
+    Output1.close();
+    Output2.close();
+    Output3.close();
 
     return 0;
 }

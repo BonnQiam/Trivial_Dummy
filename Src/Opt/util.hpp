@@ -50,6 +50,7 @@ void parse_No_Fill_Density(const std::string& filename, std::vector<Grid_Coor> &
     file.close();
 }
 
+#if 0
 void parse_Fillable_Density(const std::string& filename, std::vector<double> &Density_Fillable){
     std::ifstream file(filename);
     std::string line;
@@ -66,8 +67,9 @@ void parse_Fillable_Density(const std::string& filename, std::vector<double> &De
         std::cout << "Unable to open file";
     }
 }
+#endif
 
-void parse_Overlay(const std::string& filename, std::vector<double> &Overaly){
+void parse_Fillable_Density(const std::string& filename, std::vector<double> &Density_Fillable){
     std::ifstream file(filename);
 
     if(!file){
@@ -83,21 +85,10 @@ void parse_Overlay(const std::string& filename, std::vector<double> &Overaly){
         if (!(iss >> d)) { 
             break; // Error
         }
-        Overaly.push_back(d);
+        Density_Fillable.push_back(d);
     }
 
     file.close();
-}
-
-//????? Not used
-
-double Obtain_Overlay(const std::vector<double> &Overlay, int index_a, int index_b, int Num_grid){
-    if(index_b - index_a != Num_grid){
-        return -1;
-    }
-    else{
-        return Overlay[index_a];
-    }
 }
 
 #endif
