@@ -8,48 +8,50 @@
 #include <cmath>
 #include <vector>
 
-#define FILEEND 1
-#define ACTIVE 1
+#include "../GDS2_Read_Decomposition/ScanLine_Edge_Decomposition.hpp"
+
+#define FILEEND  1
+
+#define ACTIVE   1
 #define INACTIVE 0
 
-struct Rectangle {
-    int x_l, y_l;// left bottom point
-    int x_r, y_r;// right top point
-
-    int area(){
-        return (x_r - x_l) * (y_r - y_l);
-    };
+struct Rectangle_with_complement{
+    Rect<int> R;
+    std::vector<Rect<int>> Complement;
+    int area;
 };
 
 struct Interval {
     int x_start, x_end;
-//    int y;
-    int rectangle_y_start, rectangle_y_end;
-//    int type;
-    //int layer;
+    int y;
+    int layer;
+    Rectangle_with_complement* rect_with_complement;
 };
 
-struct Edge{
-    Interval I;
+struct Edge {
+    Interval* I;
     int y;
     int type;
-    int layer;
 };
 
-Rectangle Overlap_Rectangle(Interval I1, Interval I2){
-    Rectangle R;
-    R.x_l = std::max(I1.x_start, I2.x_start);
-    R.x_r = std::min(I1.x_end, I2.x_end);
+void Rectanlges_2_Edges(std::vector<Rectangle_with_complement> &List_Rectangles, std::vector<Edge> &List_Edges, std::vector<Interval> &List_Intervals, int layer){
+    for(int i = 0; i < List_Rectangles.size(); i++){
+        Edge edge1, edge2;
 
-    R.y_l = std::max(I1.rectangle_y_start, I2.rectangle_y_start);
-    R.y_r = std::min(I1.rectangle_y_end, I2.rectangle_y_end);
+        edge1.I = &List_Intervals[i];
+        edge1.y = List_Rectangles[i].R.getBL().getY();
+        edge1.type = ACTIVE;
 
-    return R;
+        edge2.I = &List_Intervals[i];
+        edge2.y = List_Rectangles[i].R.getTR().getY();
+        edge2.type = INACTIVE;
+
+        List_Edges.push_back(edge1);
+        List_Edges.push_back(edge2);
+    }
 }
 
-
-//int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals){
-int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int layer){
+int LoadWindowData(std::ifstream &file, int layer,std::vector<Rectangle_with_complement> &List_Rectangles, double &Overall_area){
     // check if the file is at the end
     if (file.eof())
         return FILEEND;
@@ -62,6 +64,7 @@ int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int l
         if(line == "<grid>"){
             // read next line
             std::getline(file, line);
+            Overall_area = std::stod(line);
         }
         else{
             // check if line = '</grid>'
@@ -96,14 +99,8 @@ int LoadWindowData(std::ifstream &file, std::vector<Edge> &List_Intervals, int l
                 x2 = temp;
             }
 
-            //Interval tmp1 = {x1, x2, y1, y1, y2, ACTIVE, layer};
-            //Interval tmp2 = {x1, x2, y2, y1, y2, INACTIVE, layer};
-            Interval tmp = {x1, x2, y1, y2};
-            Edge tmp1 = {tmp, y1, ACTIVE, layer};
-            Edge tmp2 = {tmp, y2, INACTIVE, layer};
-
-            List_Intervals.push_back(tmp1);
-            List_Intervals.push_back(tmp2);
+            Rect<int> R(Coor<int>(x1, y1), Coor<int>(x2, y2));
+            List_Rectangles.push_back({R, {}, R.Area()});
         }
     }
 
@@ -115,7 +112,6 @@ struct IntervalTreeNode {
     double max, min;
     std::vector<Interval> Left_Endpoints;// sort by increasing order
     std::vector<Interval> Right_Endpoints;// sort by increasing order
-    //int Left_active_child, Right_active_child;
 };
 
 class IntervalTree {
@@ -201,17 +197,7 @@ public:
     int Insert(Interval I) {
         int index = 1;
 
-        //std::cout << "I.x_start is " << I.x_start << std::endl;
-        //std::cout << "I.x_end is " << I.x_end << std::endl;
-
-        //std::cout << "Insert Test-0" << std::endl;
-
         while( index < CBT.size() && (CBT[index].value > I.x_end || CBT[index].value < I.x_start)) {
-            //std::cout << "CBT[" << index << "]: " << CBT[index].value << std::endl;
-            //std::cout << "CBT[index].value > I.x_end ? :" << (CBT[index].value > I.x_end) << std::endl;
-            //std::cout << "CBT[index].value < I.x_start ? :" << (CBT[index].value < I.x_start) << std::endl;
-
-
             if(CBT[index].value > I.x_end) {
                 index = 2 * index;
             }
@@ -261,19 +247,19 @@ public:
             //std::cout << "The interval is out of range" << std::endl;
             return 0;
         }
-
         // Delete I.start from the left endpoint list
         auto itr = CBT[index].Left_Endpoints.begin();
         //while(itr != CBT[index].Left_Endpoints.end() && (itr->x_start != I.x_start || itr->x_end != I.x_end)) {
         while(itr != CBT[index].Left_Endpoints.end()) {
             if(itr->x_start == I.x_start && itr->x_end == I.x_end &&
-                itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
+                itr->y == I.y && itr->layer == I.layer
             ){
                 break;
             }
             itr++;
         }
         if(itr != CBT[index].Left_Endpoints.end()) {
+            //std::cout << "Delete operation" << std::endl;
             CBT[index].Left_Endpoints.erase(itr);
         }
 
@@ -282,13 +268,14 @@ public:
         //while(itr != CBT[index].Right_Endpoints.end() && (itr->x_end != I.x_end || itr->x_start != I.x_start)) {
         while(itr != CBT[index].Right_Endpoints.end()) {
             if(itr->x_start == I.x_start && itr->x_end == I.x_end &&
-                itr->rectangle_y_start == I.rectangle_y_start && itr->rectangle_y_end == I.rectangle_y_end
+                itr->y == I.y && itr->layer == I.layer
             ){
                 break;
             }
             itr++;
         }
         if(itr != CBT[index].Right_Endpoints.end()) {
+            //std::cout << "Delete operation" << std::endl;
             CBT[index].Right_Endpoints.erase(itr);
         }
 
@@ -414,8 +401,6 @@ public:
         }
 #endif
 
-//        std::cout << "Size of CBT is " << CBT.size() << std::endl;
-
         /*
         * Find the node that satisfies the condition: CBT[index].value >= ST && CBT[index].value <= ED
         * Names the node as the target node
@@ -456,8 +441,6 @@ public:
                 return Result;
             }
         }
-
-//        std::cout << "Test-1" << std::endl;
 
         if(Debug == 1){
             std::cout << "The target node is " << index << std::endl;

@@ -1,23 +1,17 @@
 /*
-* Input: two windows consist of rectangles
-* Output 1: the density of the intersection area of the two windows
-* Output 2: the overlay area of the two windows will be located by rectangles
-* Algorithm: using the interval tree to the any two overlapped rectangles
-* Speed: fast
-*/
-
+ * Input: two windows consist of rectangles
+ * Output 1: the density of the intersection area of the two windows
+ * Output 2: the overlay area of the two windows will be located by rectangles
+ * Algorithm: using the interval tree to the any two overlapped rectangles
+ * Speed: fast
+ */
 
 #include <algorithm>
 #include <time.h>
 
-#include "Interval_Tree.hpp"
+#include "Overlay_Operation.hpp"
 
 #define grid_size 20000
-
-// Just for Debug
-#define check_x_coordinate 13150
-#define check_y1_coordinate 34000
-#define check_y2_coordinate 34200
 
 int main(int argc, char *argv[])
 {
@@ -29,215 +23,216 @@ int main(int argc, char *argv[])
 
     std::ifstream file1(argv[1]); //* Input File of Layer 1
     std::ifstream file2(argv[2]); //* Input File of Layer 2
-    std::ofstream file3(argv[3]); //* Output File
+
+    std::ofstream file3(argv[3]); //* Output File for Overlay Area
+    std::ofstream file5(argv[4]); //* Output File for Non-Overlay Area in Layer 1
+    std::ofstream file6(argv[5]); //* Output File for Non-Overlay Area in Layer 2
+
+    std::ofstream file4(argv[6]); //* Output File for Overlay Area
+    std::ofstream file7(argv[7]); //* Output File for Non-Overlay Area in Layer 1
+    std::ofstream file8(argv[8]); //* Output File for Non-Overlay Area in Layer 2
+
+    std::vector<double> density_list;
 
     int file_end1 = 0, file_end2 = 0;
 
     int Count_grid = 0;
 
-    std::vector<double> density_list;
-    std::ofstream file4("density.txt");
-
     while (file_end1 == 0 || file_end2 == 0)
     {
         Count_grid++;
 
+        //if(Count_grid >1)
+        //    break;
+
         clock_t start, end;
+
+        /*
+         *---------------------------------------------------------------- Read Data from File
+         */
         start = clock();
 
-        /*
-        ******************************************* Read Data from File *******************************************
-        */
-
         std::vector<Edge> List_Edges;
+        std::vector<Interval> List_Intervals_Layer_1, List_Intervals_Layer_2;
+        std::vector<Rectangle_with_complement> List_Rectangles_Layer_1, List_Rectangles_Layer_2;
+        double Overall_Area_Layer_1, Overall_Area_Layer_2;
 
-        file_end1 = LoadWindowData(file1, List_Edges, 1);
-        file_end2 = LoadWindowData(file2, List_Edges, 2);
-        
-        //std::cout << "File End 1 is " << file_end1 << std::endl;
-        //std::cout << "File End 2 is " << file_end2 << std::endl;
-        //std::cout << "Operate at the " << Count_grid << " grid" << std::endl;
+        file_end1 = LoadWindowData(file1, 1, List_Rectangles_Layer_1, Overall_Area_Layer_1);
+        file_end2 = LoadWindowData(file2, 2, List_Rectangles_Layer_2, Overall_Area_Layer_2);
 
-        /*
-        ******************************** Initialize the Interval Tree  ********************************
-        */
-
-        std::vector<int> Points;
-        for (auto &edge : List_Edges)
+        for (int i = 0; i < List_Rectangles_Layer_1.size(); i++)
         {
-            Points.push_back(edge.I.x_start);
-            Points.push_back(edge.I.x_end);
+            List_Intervals_Layer_1.push_back({List_Rectangles_Layer_1[i].R.getBL().getX(),
+                                              List_Rectangles_Layer_1[i].R.getTR().getX(),
+                                              List_Rectangles_Layer_1[i].R.getBL().getY(), 1, &List_Rectangles_Layer_1[i]});
         }
 
-        // sort and remove duplicates
-        std::sort(Points.begin(), Points.end());
-        Points.erase(std::unique(Points.begin(), Points.end()), Points.end());
+        for (int i = 0; i < List_Rectangles_Layer_2.size(); i++)
+        {
+            List_Intervals_Layer_2.push_back({List_Rectangles_Layer_2[i].R.getBL().getX(),
+                                              List_Rectangles_Layer_2[i].R.getTR().getX(),
+                                              List_Rectangles_Layer_2[i].R.getBL().getY(), 2, &List_Rectangles_Layer_2[i]});
+        }
 
-        std::cout << "Size of Points is " << Points.size() << std::endl;
+        Rectanlges_2_Edges(List_Rectangles_Layer_1, List_Edges, List_Intervals_Layer_1, 1);
+        Rectanlges_2_Edges(List_Rectangles_Layer_2, List_Edges, List_Intervals_Layer_2, 2);
 
-        if(Points.size() == 0)
+        end = clock();
+
+        std::cout << "Read Data time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
+
+        /*
+         *--------------------------------------------------------- Locate the Overlay Rectangles
+         */
+        start = clock();
+
+        double overlay_density = 0;
+        int signal = Overlay_Locate(List_Edges, overlay_density);
+
+        if (signal == 0)
+        {
             continue;
+        }
 
-        IntervalTree Tree(Points);
+        end = clock();
+        std::cout << "Overlap Locate time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
 
-        //Tree.Traverse_Display(1);
+        density_list.push_back(overlay_density);
+
+        std::cout << "Density of Overlay is " << overlay_density << " for " << Count_grid << " grid" << std::endl;
+
+        file4 << overlay_density << std::endl;
 
         /*
-        ****************************** Operation
-        ******************************
-        */
+         *--------------------------------------------------------- Clean the Overlay Rectangles
+         */
+        start = clock();
 
-        // sort the intervals by y
-        std::sort(List_Edges.begin(), List_Edges.end(), [](const Edge &a, const Edge &b){
-//            return a.y < b.y;
-#if 1
-            if(a.y == b.y){
-                //return (a.I.x_end - a.I.x_start) > (b.I.x_end - b.I.x_start);
-                return a.I.x_start < b.I.x_start;
-            }
-            else{
-                return a.y < b.y;
-            }
-#endif
-        });
+        // Clean according X-axis
+        std::vector<Rectangle_with_complement> &List_Rectangles = (Overall_Area_Layer_1 < Overall_Area_Layer_2) ? List_Rectangles_Layer_1 : List_Rectangles_Layer_2;
 
-        std::vector<Rectangle> Overlap_Rectangles;
-        int area = 0;
-
-        std::cout << "The size of List_Edge is " << List_Edges.size() << std::endl;
-
-
-#if 1
-        int count = 0;
-        for(auto &edge : List_Edges)
-        {
-            count++;
-            //std::cout << "The " << count << "th edge" << std::endl;
-
-            if (edge.type == ACTIVE)
-            {
-                // std::cout << "Debug Test 1" << std::endl;
-                Interval interval = edge.I;
-#if 0
-                if(interval.x_start <= check_x_coordinate && 
-                    interval.x_end >= check_x_coordinate && 
-                    edge.y >= check_y1_coordinate &&
-                    edge.y <= check_y2_coordinate){
-                    std::cout << "Find the interval is [" << interval.x_start << ", " << interval.x_end << "]" << std::endl;
-                    std::cout << "The y of the interval is " << edge.y << std::endl;
-                    std::cout << "The layer of the interval is " << edge.layer << std::endl;
-                    std::cout << "Now check the overlap intervals" << std::endl;
-                }
-#endif
-                std::vector<Interval> Overlap_Intervals = Tree.Overlap_Query(interval.x_start, interval.x_end, 0);
-                
-#if 0
-                std::vector<Interval> Overlap_Intervals;
-                if(interval.x_start == 12837 && interval.x_end == 13425 && edge.y == 34100){
-                    Overlap_Intervals = Tree.Overlap_Query(interval.x_start, interval.x_end, 1);
-                }
-                else{
-                    Overlap_Intervals = Tree.Overlap_Query(interval.x_start, interval.x_end, 0);
-                }
-#endif
-                //std::cout << "Debug Test 1-2" << std::endl;
-
-                for (auto &overlap_interval : Overlap_Intervals)
-                {
-
-                    #if 0
-                        if(interval.x_start <= check_x_coordinate && 
-                        interval.x_end >= check_x_coordinate && 
-                        edge.y >= check_y1_coordinate &&
-                        edge.y <= check_y2_coordinate){
-                            std::cout << "Interval is [" << interval.x_start << ", " << interval.x_end << "]" << std::endl;
-                            std::cout << "Rectangle is [" << interval.rectangle_y_start << ", " << interval.rectangle_y_end << "]" << std::endl;
-
-                            std::cout << "Overlap Interval is [" << overlap_interval.x_start << ", " << overlap_interval.x_end << "]" << std::endl;
-                            std::cout << "Overlap Rectangle is [" << overlap_interval.rectangle_y_start << ", " << overlap_interval.rectangle_y_end << "]" << std::endl;
-                        }
-                    #endif
-                    
-                    Rectangle R = Overlap_Rectangle(interval, overlap_interval);
-                    
-                    if (R.area() > 0)
-                    {
-                        Overlap_Rectangles.push_back(R);
-                        area += R.area();
-                    }
-                }
-
-                //std::cout << "Debug Test 1-3" << std::endl;
-                int signal = Tree.Insert(interval);
-
-#if 0
-                if(interval.x_start == 3305 && interval.x_end == 3837 && edge.y == 15204){
-                    std::cout << "Interval is inserted in the CBT[" << signal << "]" << std::endl;
-                }
-#endif
-                if(signal == 0){
-                    std::cout << "Interval is [" << interval.x_start << ", " << interval.x_end << "]" << std::endl;
-                    std::cout << "Insert failed" << std::endl;
-                    std::cout << "=============================" << std::endl;
-                }
-                //std::cout << "Debug Test 1-4" << std::endl;
-            }
-            else if (edge.type == INACTIVE)
-            {
-                //std::cout << "Debug Test 2" << std::endl;
-                Interval interval = edge.I;
-
-#if 0
-                if(interval.x_start <= check_x_coordinate && 
-                    interval.x_end >= check_x_coordinate && 
-                    edge.y >= check_y1_coordinate &&
-                    edge.y <= check_y2_coordinate){
-                    std::cout << "Find the interval is [" << interval.x_start << ", " << interval.x_end << "]" << std::endl;
-                    std::cout << "The y of the interval is " << edge.y << std::endl;
-                    std::cout << "The layer of the interval is " << edge.layer << std::endl;
-                    std::cout << "Now Delete intervals" << std::endl;
-                }
-#endif
-                
-                int signal = Tree.Delete(interval);
-                if(signal == 0){
-                    std::cout << "Interval is [" << interval.x_start << ", " << interval.x_end << "]" << std::endl;
-                    std::cout << "Delete failed" << std::endl;
-                    std::cout << "=============================" << std::endl;
-                }
-            }
-        }
-
-        double density = double(area) / (grid_size * grid_size);
-        density_list.push_back(density);
-
-        end = clock();
-        //double density = double(area);
-
-        end = clock();
-        std::cout << "Overlap Operation time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
-
-        //std::cout << "Area is " << area << " for " << Count_grid << " grid" << std::endl;
-
-        std::cout << "Density is " << density << " for " << Count_grid << " grid" << std::endl;
+        int layer_num = (Overall_Area_Layer_1 < Overall_Area_Layer_2) ? 1 : 2;
         
-        std::cout << "===============================================================" << std::endl;
+        std::vector<Rect<int>> Overlay_Rectangles;
 
-        // Output
+        Rectangle_Clean_XY(List_Rectangles, layer_num, Overlay_Rectangles);
+
+        end = clock();
+
+        std::cout << "Overlay Clean time is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
+
+        /*
+         *------------------------------------------------- Output the Overlay Rectangles to file3
+         */
+
         file3 << "<grid>" << std::endl;
-        file3 << density << std::endl;
+        file3 << overlay_density << std::endl;
 
-        for (auto &R : Overlap_Rectangles)
+        int area_overlay = 0;
+        for (auto &rect : Overlay_Rectangles)
         {
-            file3 << "(" << R.x_l << ", " << R.y_l << "),";
-            file3 << "(" << R.x_r << ", " << R.y_r << ")" << std::endl;
+            if (rect.getH() == 0)
+            {
+                continue;
+            }
+            else if (rect.getH() > 0)
+            {
+                file3 << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
+                file3 << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
+                area_overlay += rect.Area();
+            }
+            else
+            {
+                std::cout << "Illegal situation cause of the area is negative" << std::endl;
+            }
         }
+
+        double density_check = double(area_overlay) / (grid_size * grid_size * 1.0);
+        //std::cout << "Density of Overlay is " << density_check << " for " << Count_grid << " grid" << std::endl;
 
         file3 << "</grid>" << std::endl;
 
+        /*
+         *------------------------------------------------- Locate the Non-Overlay Rectangles in Layer 1
+         */
 
-        file4 << density << std::endl;
-#endif
+        start = clock();
+
+        layer_num = 1;
+        double nonoverlay_density_layer = 0;
+        std::vector<Rect<int>> List_Nonoverlay_Rectangles_Layer;
+
+        Non_Overlay_Locate(List_Rectangles_Layer_1, nonoverlay_density_layer, layer_num,List_Nonoverlay_Rectangles_Layer);
+
+        end = clock();
+        std::cout << "Non-Overlay Locate time for layer 1 is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
+
+        file5 << "<grid>" << std::endl;
+        file5 << nonoverlay_density_layer << std::endl;
+
+        for (auto &rect : List_Nonoverlay_Rectangles_Layer)
+        {
+            file5 << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
+            file5 << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
+        }
+
+        file5 << "</grid>" << std::endl;
+
+        file7 << nonoverlay_density_layer << std::endl;
+
+        // ? double check
+        if (Overall_Area_Layer_1 - (nonoverlay_density_layer + overlay_density) > 1e-5)
+        {
+            std::cout << "The area is not equal for layer 1 in grid " << Count_grid << std::endl;
+            std::cout << "Overall Area is " << Overall_Area_Layer_1 << " in grid " << Count_grid << std::endl;
+            std::cout << "Non-Overlay Area + Overlay Area is " << nonoverlay_density_layer << " + " << overlay_density << " = " << nonoverlay_density_layer + overlay_density << " in grid " << Count_grid << std::endl;
+        }
+        else
+        {
+            std::cout << "The area is equal for layer 1 in grid " << Count_grid << std::endl;
+        }
+
+        /*
+         *------------------------------------------------- Locate the Non-Overlay Rectangles in Layer 1
+         */
+        start = clock();
+
+        layer_num = 2;
+        nonoverlay_density_layer = 0;
+        List_Nonoverlay_Rectangles_Layer.clear();
+
+        Non_Overlay_Locate(List_Rectangles_Layer_2, nonoverlay_density_layer, layer_num, List_Nonoverlay_Rectangles_Layer);
+
+        end = clock();
+        std::cout << "Non-Overlay Locate time for layer 2 is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
+
+        std::cout << "Size of Non-Overlay Rectangles in Layer 2 is " << List_Nonoverlay_Rectangles_Layer.size() << " for " << Count_grid << " grid" << std::endl;
+
+        file6 << "<grid>" << std::endl;
+        file6 << nonoverlay_density_layer << std::endl;
+
+        for (auto &rect : List_Nonoverlay_Rectangles_Layer)
+        {
+            file6 << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
+            file6 << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
+        }
+
+        file6 << "</grid>" << std::endl;
+        // check
+        if (Overall_Area_Layer_2 - (nonoverlay_density_layer + overlay_density) > 1e-5)
+        {
+            std::cout << "The area is not equal for layer 2 in grid " << Count_grid << std::endl;
+            std::cout << "Overall Area is " << Overall_Area_Layer_2 << " in grid " << Count_grid << std::endl;
+            std::cout << "Non-Overlay Area + Overlay Area is " << nonoverlay_density_layer << " + " << overlay_density << " = " << nonoverlay_density_layer + overlay_density << " in grid " << Count_grid << std::endl;
+        }
+        else
+        {
+            std::cout << "The area is equal for layer 2 in grid " << Count_grid << std::endl;
+        }
+
+        file8 << nonoverlay_density_layer << std::endl;
+
+        std::cout << "===============================================================" << std::endl;
     }
 
     // close the file
@@ -245,6 +240,10 @@ int main(int argc, char *argv[])
     file2.close();
     file3.close();
     file4.close();
+    file5.close();
+    file6.close();
+    file7.close();
+    file8.close();
 
     return 0;
 }
