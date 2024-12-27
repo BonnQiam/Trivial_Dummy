@@ -4,6 +4,8 @@
 #include <time.h>
 #include <random>
 
+#define min_density 1e-8
+
 int main(int argc, char *argv[])
 {
     /*
@@ -98,50 +100,58 @@ int main(int argc, char *argv[])
         if (index < Num_grid)
         {
             offset = 0;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Dummy_Dummy_M1[index - offset];
         }
         else if (index >= Num_grid && index < 2 * Num_grid)
         {
             offset = Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Dummy_Wire_M1[index - offset];
 
         }
         else if (index >= 2 * Num_grid && index < 3 * Num_grid)
         {
             offset = 2 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Dummy_Dummy_Dummy_M2[index - offset];
         }
         else if (index >= 3 * Num_grid && index < 4 * Num_grid)
         {
             offset = 3 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Dummy_Dummy_Wire_M2[index - offset];
         }
         else if (index >= 4 * Num_grid && index < 5 * Num_grid)
         {
             offset = 4 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Wire_Dummy_Dummy_M2[index - offset];
         }
         else if (index >= 5 * Num_grid && index < 6 * Num_grid)
         {
             offset = 5 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Wire_Dummy_Wire_M2[index - offset];
         }
         else if (index >= 6 * Num_grid && index < 7 * Num_grid)
         {
             offset = 6 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Dummy_Dummy_M3[index - offset];
         }
         else if (index >= 7 * Num_grid && index < 8 * Num_grid)
         {
             offset = 7 * Num_grid;
-            xl[index] = 0.0;
+            //xl[index] = 0.0;
+            xl[index] = min_density;
             xu[index] = Wire_Dummy_M3[index - offset];
         }
         else if (index >= 8 * Num_grid)
@@ -181,6 +191,36 @@ int main(int argc, char *argv[])
         options, xi, xl, xu, gl, gu, fg_eval, solution);
 
     ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
+
+
+    /*
+     * ******************************************* Feasibility check
+     */
+
+    std::cout << "=====================================================" << std::endl;
+
+    for (int i = 0; i < length; i++)
+    {
+        if (solution.x[i] < 0.0)
+        {
+            std::cout << "Infeasible solution < xl" << std::endl;
+        }
+        else if (solution.x[i] > xu[i])
+        {
+            std::cout << "Infeasible solution > xu" << std::endl;
+        }
+        else{
+            double fill_percent = solution.x[i] / xu[i];
+            std::cout << "Fill percent: " << fill_percent << std::endl;
+        }
+
+        if(solution.x[i] < min_density)
+        {
+            solution.x[i] = 0.0;
+        }
+    }
+
+    std::cout << "=====================================================" << std::endl;
 
     /*
      * ******************************************* Metric - Overlay
@@ -305,16 +345,65 @@ int main(int argc, char *argv[])
      * ******************************************* Output
      */
 
-    std::ofstream Output1("Gird_Opt_Layer_M1.txt");
-    std::ofstream Output2("Gird_Opt_Layer_M2.txt");
-    std::ofstream Output3("Gird_Opt_Layer_M3.txt");
+    std::ofstream Output1("Grid_Opt_Layer_M1.txt");
+    std::ofstream Output2("Grid_Opt_Layer_M2.txt");
+    std::ofstream Output3("Grid_Opt_Layer_M3.txt");
 
     for(int i=0; i<Num_grid; i++){
+
+#if 1
+        if(solution.x[i] < 1e-6)
+            Output1 << "0.0,";
+        else
+            Output1 << solution.x[i] << ",";
+
+        if(solution.x[i + Num_grid] < 1e-6)
+            Output1 << "0.0" << std::endl;
+        else
+            Output1 << solution.x[i + Num_grid] << std::endl;
+
+
+
+        if(solution.x[i + 2*Num_grid] < 1e-6)
+            Output2 << "0.0,";
+        else
+            Output2 << solution.x[i + 2*Num_grid] << ",";
+
+        if(solution.x[i + 3*Num_grid] < 1e-6)
+            Output2 << "0.0,";
+        else
+            Output2 << solution.x[i + 3*Num_grid] << ",";
+
+        if(solution.x[i + 4*Num_grid] < 1e-6)
+            Output2 << "0.0,";
+        else
+            Output2 << solution.x[i + 4*Num_grid] << ",";
+
+        if(solution.x[i + 5*Num_grid] < 1e-6)
+            Output2 << "0.0" << std::endl;
+        else
+            Output2 << solution.x[i + 5*Num_grid] << std::endl;
+
+        
+        if(solution.x[i + 6*Num_grid] < 1e-6)
+            Output3 << "0.0,";
+        else
+            Output3 << solution.x[i + 6*Num_grid] << ",";
+
+        if(solution.x[i + 7*Num_grid] < 1e-6)
+            Output3 << "0.0" << std::endl;
+        else
+            Output3 << solution.x[i + 7*Num_grid] << std::endl;
+
+#endif
+
+#if 0
         Output1 << solution.x[i] << " " << solution.x[i + Num_grid] << std::endl;
         
         Output2 << solution.x[i + 2*Num_grid] << " " << solution.x[i + 3*Num_grid] << " " << solution.x[i + 4*Num_grid] << " " << solution.x[i + 5*Num_grid] << std::endl;
 
         Output3 << solution.x[i + 6*Num_grid] << " " << solution.x[i + 7*Num_grid] << std::endl;
+#endif
     }
 
     Output1.close();
