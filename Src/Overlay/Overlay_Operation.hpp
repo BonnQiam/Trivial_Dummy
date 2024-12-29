@@ -2,10 +2,16 @@
 #define Overlay_Operation_hpp
 
 #include "Interval_Tree.hpp"
+//! Attention ---- When use the "Interval_Tree.hpp", adjust the struct "Interval"
+
 #include "Rect_Complement.hpp"
 #include "Rect_Decomposition.hpp"
 
 #define grid_size 20000
+
+#define minimum_w       32    // unit: nm
+#define minimum_s       32    // unit: nm
+#define minimum_area    4800  // unit: nm
 
 #define Empty 0
 
@@ -61,7 +67,8 @@ int Overlay_Locate(std::vector<Edge> &List_Edges, double &density)
             {
                 Rect<int> R = Rectangle_intersection(edge.I->rect_with_complement->R, overlap_interval.rect_with_complement->R);
 
-                if (R.getH() > 0)
+//?                if (R.getH() > 0)
+                if(R.Area() > 0)
                 {
                     area += R.Area();
 

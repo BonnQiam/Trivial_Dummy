@@ -7,128 +7,86 @@
 #include <iostream>
 #include <regex>
 #include <cmath>
+#include <utility>
 
 #include <vector>
 
-#define grid_size       20000
-//! Design rule
-#define minimum_w       32    // unit: nm
-#define minimum_s       32    // unit: nm
-#define minimum_area    4800  // unit: nm
+#include "Legal_fill.hpp"
 
-struct Rectangle {
-    std::vector<int> x;
-    std::vector<int> y;
-    int area;
-    int layer;
+#define Num_grid 160
+#define x_grid_num 8
+#define y_grid_num 20
 
-    Rectangle(){}
+#define Layer_1  10001
+#define Layer_2  10002
+#define Layer_3  10003
 
-    Rectangle(int x1, int y1, int x2, int y2, int l){
-        x.push_back(x1); y.push_back(y1);
-        x.push_back(x1); y.push_back(y2);
-        x.push_back(x2); y.push_back(y2);
-        x.push_back(x2); y.push_back(y1);
+void parse_Overlay(const std::string& filename, std::vector<double> &Overlay){
+    std::ifstream file(filename);
 
-        area = (x2 - x1) * (y2 - y1);
-
-        layer = l;
+    if(!file){
+        std::cerr << "Could not open file: " << filename << '\n';
+        exit(1);
     }
-};
 
-struct DensityObj{
-    std::vector< std::vector<double> > grid_fill_density;
-    int size;
-};
+    std::string line;
 
-void RectangleSort(std::vector<Rectangle> &List_Rectangles){
-    //sort by area, large 2 small
-    std::sort(List_Rectangles.begin(), List_Rectangles.end(), [](const Rectangle &a, const Rectangle &b){
-        return a.area > b.area;
-    });
+    while(std::getline(file, line)){
+        double val;
+        if(!(std::istringstream(line) >> val)){
+            break;
+        }
+        Overlay.push_back(val);
+    }
+
+    file.close();
 }
 
-// Adjust the rectangle avoiding the design rule violation
-int Rectangle_adjust(const Rectangle &Rect, Rectangle &Result){
-    int x1 = Rect.x[0], y1 = Rect.y[0];
-    int x2 = Rect.x[2], y2 = Rect.y[2];
-    int layer = Rect.layer;
-
-    int x1_new = x1 + minimum_s;
-    int x2_new = x2 - minimum_s;
-
-    int y1_new = y1 + minimum_s;
-    int y2_new = y2 - minimum_s;
-
-    if(x1_new >= x2_new || y1_new >= y2_new){
-        // design rule violation
-        return -1;
+void parse_No_Fill_Density(const std::string& filename, std::vector<double> &Density_Mental)
+{
+    struct Data {
+        int x;
+        int y;
+        double val1;
+        double val2;
+    };
+    
+    std::ifstream file(filename);
+    if (!file) {
+        std::cerr << "Could not open file: " << filename << '\n';
+        exit(1);
     }
-    else if(x2_new - x1_new < minimum_w || y2_new - y1_new < minimum_w){
-        // design rule violation
-        return -1;
-    }
-    else{
-        Result = Rectangle(x1_new, y1_new, x2_new, y2_new, layer);
 
-        if(Result.area < minimum_area){
-            // design rule violation
-            return -1;
+    std::string line;
+
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        Data d;
+        if (!(iss >> d.x >> d.y >> d.val1 >> d.val2)) { 
+            break; // Error
         }
-        else{
-            return 1;
-        }
+        Density_Mental.push_back(d.val1);
     }
+
+    file.close();
 }
 
-int Rectangle_shrink(const Rectangle &Rect, Rectangle &Result, double shrink_ratio){
-    int x1 = Rect.x[0], y1 = Rect.y[0];
-    int x2 = Rect.x[2], y2 = Rect.y[2];
-    int layer = Rect.layer;
 
-    int x1_new = x1 + int((x2 - x1) * shrink_ratio)*0.5;// x1 + shrink_ratio * width
-    int x2_new = x2 - int((x2 - x1) * shrink_ratio)*0.5;// x2 - shrink_ratio * width
-
-    int y1_new = y1 + int((y2 - y1) * shrink_ratio)*0.5;// y1 + shrink_ratio * height
-    int y2_new = y2 - int((y2 - y1) * shrink_ratio)*0.5;// y2 - shrink_ratio * height
-
-    if(x1_new >= x2_new || y1_new >= y2_new){
-        // design rule violation
-        return -1;
-    }
-    else if(x2_new - x1_new < minimum_w || y2_new - y1_new < minimum_w){
-        // design rule violation
-        return -1;
-    }
-    else{
-        Result = Rectangle(x1_new, y1_new, x2_new, y2_new, layer);
-        
-        if(Result.area < minimum_area){
-            // design rule violation
-            return -1;
-        }
-        else{
-            return 1;
-        }
-    }
-}
-
-int LoadFillObj(const std::string& Filename, DensityObj &Obj){
+int LoadFillObj(const std::string& Filename, std::vector<std::vector<double>> &Obj, int size){
     std::regex re;
-
-    if(Obj.size == 2){
+    if(size == 2){
         //"0.15084,0.15084" 
         re = R"((\d+\.\d+),(\d+\.\d+))";
-        Obj.grid_fill_density.push_back({});
-        Obj.grid_fill_density.push_back({});
+        Obj.push_back({});
+        Obj.push_back({});
     }
-    else if(Obj.size == 4){
+    else if(size == 4){
         //"0.15084,0.15084,0.15084,0.15084" 
         re = R"((\d+\.\d+),(\d+\.\d+),(\d+\.\d+),(\d+\.\d+))";
-        Obj.grid_fill_density.push_back({});
-        Obj.grid_fill_density.push_back({});
-        Obj.grid_fill_density.push_back({});
-        Obj.grid_fill_density.push_back({});
+        Obj.push_back({});
+        Obj.push_back({});
+        Obj.push_back({});
+        Obj.push_back({});
     }
     else{
         return -1;
@@ -141,21 +99,17 @@ int LoadFillObj(const std::string& Filename, DensityObj &Obj){
     while(std::getline(file, line)){
         double x1, x2, x3, x4;
 
-        if(Obj.size == 2){
+        if(size == 2){
             std::smatch match;
-            if(std::regex_search(line, match, re)){
-                //std::cout << "match[0] = " << match[0] << "  match[1] = " << match[1] << std::endl;
 
+            if(std::regex_search(line, match, re)){
                 x1 = std::stod(match[1]);
                 x2 = std::stod(match[2]);
             }
-            //else{
-            //    std::cout << "regex_search failed !" << std::endl;
-            //}
-            Obj.grid_fill_density[0].push_back(x1);
-            Obj.grid_fill_density[1].push_back(x2);
+            Obj.end()[-2].push_back(x1);
+            Obj.end()[-1].push_back(x2);
         }
-        else if(Obj.size == 4){
+        else if(size == 4){
             std::smatch match;
             if(std::regex_search(line, match, re)){
                 x1 = std::stod(match[1]);
@@ -163,10 +117,11 @@ int LoadFillObj(const std::string& Filename, DensityObj &Obj){
                 x3 = std::stod(match[3]);
                 x4 = std::stod(match[4]);
             }
-            Obj.grid_fill_density[0].push_back(x1);
-            Obj.grid_fill_density[1].push_back(x2);
-            Obj.grid_fill_density[2].push_back(x3);
-            Obj.grid_fill_density[3].push_back(x4);
+
+            Obj.end()[-4].push_back(x1);
+            Obj.end()[-3].push_back(x2);
+            Obj.end()[-2].push_back(x3);
+            Obj.end()[-1].push_back(x4);
         }
     }
 
@@ -175,7 +130,7 @@ int LoadFillObj(const std::string& Filename, DensityObj &Obj){
     return 1;
 }
 
-void LoadRectangle(const std::string& Filename, std::vector<std::vector<Rectangle>> &List_Rectangles, int layer){
+void LoadRectangle(const std::string& Filename, std::vector<std::vector<Rect<int>>> &List_Rectangles){
     std::ifstream file(Filename);
     std::string line;
     std::regex re(R"(\((\d+), (\d+)\),\((\d+), (\d+)\))");
@@ -187,12 +142,14 @@ void LoadRectangle(const std::string& Filename, std::vector<std::vector<Rectangl
         if(line == "<grid>"){
             //skip one more line
             std::getline(file, line);
-            List_Rectangles.push_back(std::vector<Rectangle>());
+            List_Rectangles.push_back(std::vector<Rect<int>>());
         }
         else{
             if(line == "</grid>"){
                 //sort the rectangles in the grid by area
-                RectangleSort(List_Rectangles.back());
+                std::sort(List_Rectangles.back().begin(), List_Rectangles.back().end(), [](const Rect<int> &a, const Rect<int> &b){
+                    return a.Area() > b.Area();
+                });
             }
 
             //extract x1, y1, x2, y2 from the format like "(15705, 18196),(16117, 17652)"
@@ -222,7 +179,7 @@ void LoadRectangle(const std::string& Filename, std::vector<std::vector<Rectangl
                 x2 = temp;
             }
 
-            Rectangle tmp = Rectangle(x1, y1, x2, y2, layer);
+            Rect<int> tmp(Coor<int>(x1, y1), Coor<int>(x2, y2));
             //List_Rectangles.push_back(tmp);
             List_Rectangles.back().push_back(tmp);
         }
@@ -231,64 +188,25 @@ void LoadRectangle(const std::string& Filename, std::vector<std::vector<Rectangl
     file.close();
 }
 
-void Grid_Rectangle_Generate(double Density_Obj, 
-    const std::vector<Rectangle> &List_Rectangles,
-    std::vector<Rectangle> &List_Result){
+void Layer_Rectangle_Generate(std::vector<double> Density_Obj, int offset,
+    std::vector<std::vector<Rect<int>>> &List_Rectangles,
+    std::vector<std::vector<Rect<int>>> &List_Result,
+    std::vector<double> &Density_Fillable){
     
-    double fill_target = Density_Obj * grid_size * grid_size;
-    auto itr = List_Rectangles.begin();
+    for(int i = 0; i < List_Rectangles.size(); i++){
+        List_Result.push_back(std::vector<Rect<int>>());
 
-    while(fill_target > 0){
-        if(fill_target <= itr->area){
-            double ratio = sqrt((itr->area - fill_target) / itr->area);
-            Rectangle tmp;
-            if(Rectangle_shrink(*itr, tmp, ratio) == 1){
-                //std::cout << "Rectangle generate successfully in case 1 !" << std::endl;
-                List_Result.push_back(tmp);
-                fill_target = 0;
-            }
-            else{
-                //std::cout << "Rectangle generate failed in case 1 !" << std::endl;
-            }
+        if(Density_Obj[i+offset] == 0.0){
+            Density_Fillable.push_back(0.0);
+            continue;
         }
-        else{
-            Rectangle tmp;
-            Rectangle_adjust(*itr, tmp);
-            if(Rectangle_adjust(*itr, tmp) == 1){
-                //std::cout << "Rectangle generate successfully in case 2 !" << std::endl;
-                List_Result.push_back(tmp);
-                fill_target -= tmp.area;
-            }
-            else{
-                //std::cout << "Rectangle generate failed in case 2 !" << std::endl;
-            }
-        }
-        //fill_target -= itr->area;
 
-        itr++;
-        if(itr == List_Rectangles.end()){
-            break;
-        }
-    }
+        double density_fill = Legal_Fill(List_Rectangles[i], List_Result[i], Density_Obj[i+offset]);
 
-    if(fill_target > 0){
-        std::cout << "Remaining fill_target_density = " << fill_target/(grid_size*grid_size) << std::endl;
-    }
-
-}
-
-void Layer_Rectangle_Generate(std::vector<double> Density_Obj, 
-    const std::vector<std::vector<Rectangle>> &List_Rectangles,
-    std::vector<std::vector<Rectangle>> &List_Result){
-
-    std::cout << "Density_Obj.size() = " << Density_Obj.size() << std::endl;
-    
-    for(int i = 0; i < Density_Obj.size(); i++){
-        List_Result.push_back(std::vector<Rectangle>());
-        Grid_Rectangle_Generate(Density_Obj[i], List_Rectangles[i], List_Result.back());
-
-        std::cout << "Handling Grid " << i << " done !" << std::endl;
-        std::cout << "======================================" << std::endl;
+        Density_Fillable.push_back(density_fill);
+        
+        //std::cout << "Handling Grid " << i << " done !" << std::endl;
+        //std::cout << "======================================" << std::endl;
     }
 }
     

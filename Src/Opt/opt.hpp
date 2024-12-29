@@ -89,7 +89,7 @@ public:
         Grid.resize(Num_grid * 3);
         Line_Mean.resize(x_grid_num * 3);
         /*
-         * ******************************************* Metric - Overlay
+         * ******************************************* Metric - Std
          */
         for (int i = 0; i < Num_grid; i++)
         {
@@ -184,7 +184,7 @@ public:
 
             Overlay23 += CppAD::CondExpGe(Zero, tmp2, Zero, tmp2) + x[i + 3 * Num_grid] + x[i + 5 * Num_grid] + x[i + 7 * Num_grid];
         }
-        
+
         Overlay12 = Overlay12 * Grid_size * Grid_size;
         Overlay23 = Overlay23 * Grid_size * Grid_size;
 
@@ -196,6 +196,8 @@ public:
         //fg[0] = (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line;
         //fg[0] = (Outlier1 + Outlier2 + Outlier3) / beta_outlier;
         fg[0] = (Overlay12 + Overlay23) / beta_overlay;
+
+        //fg[0] = (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line + (Outlier1 + Outlier2 + Outlier3) / beta_outlier;
 
         //fg[0] = (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line + (Outlier1 + Outlier2 + Outlier3) / beta_outlier;
 

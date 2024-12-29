@@ -211,7 +211,7 @@ int main(int argc, char *argv[])
         }
         else{
             double fill_percent = solution.x[i] / xu[i];
-            std::cout << "Fill percent: " << fill_percent << std::endl;
+            std::cout << "Fill percent= " << solution.x[i] << " / " << xu[i] << " = " << fill_percent << " in [" << xl[i] << ", " << xu[i] << "]" << std::endl;
         }
 
         if(solution.x[i] < min_density)

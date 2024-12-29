@@ -1,5 +1,5 @@
-#ifndef UTIL
-#define UTIL
+#ifndef Interval_Tree_hpp
+#define Interval_Tree_hpp
 
 #include <fstream>
 #include <sstream>
@@ -25,7 +25,22 @@ struct Interval {
     int x_start, x_end;
     int y;
     int layer;
-    Rectangle_with_complement* rect_with_complement;
+
+    //Rectangle_with_complement* rect_with_complement;
+    //!Enable When Locating the Overlay and Non-Overlay Rectangles
+    
+#if 1
+    Interval(){}
+    Rect<int>* r;
+    //!Enable When Window Query
+    Interval(int x1, int x2, int y1, int l, Rect<int>* rect){
+        x_start = x1;
+        x_end = x2;
+        y = y1;
+        layer = l;
+        r = rect;
+    }
+#endif
 };
 
 struct Edge {

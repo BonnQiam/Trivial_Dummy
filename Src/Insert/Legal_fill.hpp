@@ -1,5 +1,5 @@
-#ifndef UTIL
-#define UTIL
+#ifndef LEGAL_FILL
+#define LEGAL_FILL
 
 #include "../Overlay/Interval_Tree.hpp"
 //! Attention ---- When use the "Interval_Tree.hpp", adjust the struct "Interval"
@@ -33,60 +33,12 @@ int Rectangle_shrink(Rect<int> rect, double ratio)
     return 1;
 }
 
-void LoadWindowData(const std::string &Filename, std::vector<Rect<int>> &Rects)
-{
-    std::ifstream file(Filename);
-
-    std::string line;
-    std::regex re(R"(\((\d+), (\d+)\),\((\d+), (\d+)\))");
-    
-    while(std::getline(file, line)){
-        if(line == "<grid>")
-            std::getline(file, line);
-        else{
-            if(line == "</grid>")
-                break;
-
-            int x1, y1, x2, y2;
-            std::smatch match;
-            if(std::regex_search(line, match, re)){
-                x1 = std::stoi(match[1]);
-                y1 = std::stoi(match[2]);
-                x2 = std::stoi(match[3]);
-                y2 = std::stoi(match[4]);
-            }
-
-            if(x1 == x2 || y1 == y2){
-                //std::cout << "Test" << std::endl;
-                continue;
-            }
-
-            int temp;
-            if(y1 > y2){
-                temp = y1;
-                y1 = y2;
-                y2 = temp;
-            }
-
-            if(x1 > x2){
-                temp = x1;
-                x1 = x2;
-                x2 = temp;
-            }
-
-            Rect<int> R(Coor<int>(x1, y1), Coor<int>(x2, y2));
-            Rects.push_back(R);
-        }
-    }
-}
-
-void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
+double Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill, double Density_obj)
 {
     std::vector<Interval>  X_intervals;
     std::vector<int>       X_points;
 
     for(int i = 0; i < List_rect.size(); i++){
-
         X_intervals.push_back({
             List_rect[i].getBL().getX(), List_rect[i].getTR().getX(), 
             List_rect[i].getBL().getY(),
@@ -115,32 +67,31 @@ void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
      *-----------------------------------------   Legal fill
      */
 
-    int fill_target = 0.15084 * grid_size * grid_size;
-
-    std::cout << "Size of X_intervals: " << X_intervals.size() << std::endl;
+    //int fill_target = 0.0989617 * grid_size * grid_size;
+    int fill_target = Density_obj * grid_size * grid_size;
 
     for(int i = 0; i < X_intervals.size(); i++){
-        std::cout << "i = " << i << std::endl;
-
         Coor<int> bl = X_intervals[i].r->getBL();
         Coor<int> tr = X_intervals[i].r->getTR();
 
         //Window query setting
-        Coor<int> window_bl {bl.getX() - minimum_s, bl.getY() - minimum_s};
-        Coor<int> window_tr {tr.getX() + minimum_s, tr.getY() + minimum_s};
+        bl.addToX(-minimum_s);
+        bl.addToY(-minimum_s);
+        tr.addToX(minimum_s);
+        tr.addToY(minimum_s);
 
-        Rect<int> window = {window_bl, window_tr};
+        Rect<int> window = {bl, tr};
 
         std::vector<Rect<int>> overlap_rects;
 
         //check the overlap rectangle by window query
 
-        std::vector<Interval> X_overlap_intervals = X_Tree.Overlap_Query(window_bl.getX(), window_tr.getX(), 0);
+        std::vector<Interval> X_overlap_intervals = X_Tree.Overlap_Query(bl.getX(), tr.getX(), 0);
 
         for(auto &interval: X_overlap_intervals){
             if(interval.x_start == X_intervals[i].r->getBL().getX() && 
                 interval.x_end == X_intervals[i].r->getTR().getX() &&
-                interval.y == X_intervals[i].y){
+                interval.y == X_intervals[i].r->getBL().getY()){
                 continue;
             }
 
@@ -154,12 +105,9 @@ void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
         }
 
         //distance between the rectangle and the overlap rectangles
-        int up=0, down=0, left=0, right=0;
-
-        std::cout << "Overlap Rectangles: " << overlap_rects.size() << std::endl;
+        int up=minimum_s, down=minimum_s, left=minimum_s, right=minimum_s;
 
         for(auto &rect: overlap_rects){
-
             Coor<int> rect_tr = rect.getTR();
             Coor<int> rect_bl = rect.getBL();
 
@@ -181,10 +129,7 @@ void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
                     right = std::min(right, rect_bl.getX() - tr.getX());
                 }
             }
-            else if(
-                rect_tr.getX() <= tr.getX() &&
-                rect_bl.getX() >= bl.getX())
-            {
+            else{
                 if(rect_bl.getY() > tr.getY()){
                     // rect is on the top
                     up = std::min(up, rect_bl.getY() - tr.getY());
@@ -212,8 +157,7 @@ void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
 
         //checkt the rectangle legality
         int width = X_intervals[i].r->getTR().getX() - X_intervals[i].r->getBL().getX();
-        int height = X_intervals[i].r->getTR().getY() - X_intervals[i].r->getBL().getY();
-        if(X_intervals[i].r->Area() < minimum_area || width < minimum_w || height < minimum_w){
+        if(X_intervals[i].r->Area() < minimum_area || width < minimum_w){
             continue;
         }
 
@@ -243,9 +187,23 @@ void Legal_Fill(std::vector<Rect<int>> &List_rect, std::vector<Rect<int>> &Fill)
     }
 
     //Output
+    double fill_density = 0.0;
     for(auto &interval: X_Tree.Traverse_Collect_Interval(1)){
         Fill.push_back(*interval.r);
+        fill_density += interval.r->Area();
     }
+
+    fill_density /= grid_size * grid_size;
+
+#if 1
+    if(abs(fill_density - Density_obj) > 0.001){
+        std::cout << "Error: fill density is not equal to the target density" << std::endl;
+        std::cout << "Target density: " << Density_obj << std::endl;
+        std::cout << "Fill density: " << fill_density << std::endl;
+    }
+#endif
+
+    return fill_density;
 }
 
 #endif

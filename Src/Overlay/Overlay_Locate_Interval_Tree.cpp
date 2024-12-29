@@ -126,12 +126,19 @@ int main(int argc, char *argv[])
          */
 
         file3 << "<grid>" << std::endl;
+        
+        for(auto &rect : Overlay_Rectangles){
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w){
+                overlay_density -= rect.Area()/grid_size/grid_size;
+            }
+        }
         file3 << overlay_density << std::endl;
 
         int area_overlay = 0;
         for (auto &rect : Overlay_Rectangles)
         {
-            if (rect.getH() == 0)
+            //if (rect.getH() == 0)
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w)
             {
                 continue;
             }
@@ -168,10 +175,20 @@ int main(int argc, char *argv[])
         std::cout << "Non-Overlay Locate time for layer 1 is " << (double)(end - start) / CLOCKS_PER_SEC / 60 << " min" << " for " << Count_grid << " grid" << std::endl;
 
         file5 << "<grid>" << std::endl;
+
+        for(auto &rect : List_Nonoverlay_Rectangles_Layer){
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w){
+                nonoverlay_density_layer -= rect.Area()/grid_size/grid_size;
+            }
+        }
+
         file5 << nonoverlay_density_layer << std::endl;
 
         for (auto &rect : List_Nonoverlay_Rectangles_Layer)
         {
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w)
+                continue;
+
             file5 << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
             file5 << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
         }
@@ -193,7 +210,7 @@ int main(int argc, char *argv[])
         }
 
         /*
-         *------------------------------------------------- Locate the Non-Overlay Rectangles in Layer 1
+         *------------------------------------------------- Locate the Non-Overlay Rectangles in Layer 2
          */
         start = clock();
 
@@ -209,10 +226,20 @@ int main(int argc, char *argv[])
         std::cout << "Size of Non-Overlay Rectangles in Layer 2 is " << List_Nonoverlay_Rectangles_Layer.size() << " for " << Count_grid << " grid" << std::endl;
 
         file6 << "<grid>" << std::endl;
+
+        for(auto &rect : List_Nonoverlay_Rectangles_Layer){
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w){
+                nonoverlay_density_layer -= rect.Area()/grid_size/grid_size;
+            }
+        }
+
         file6 << nonoverlay_density_layer << std::endl;
 
         for (auto &rect : List_Nonoverlay_Rectangles_Layer)
         {
+            if(rect.Area() < minimum_area || rect.getTR().getX() - rect.getBL().getX() < minimum_w)
+                continue;
+
             file6 << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
             file6 << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
         }
