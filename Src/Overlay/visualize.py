@@ -78,12 +78,12 @@ def WindowVisualize(index):
             # update the x_min, x_max, y_min, y_max
             if Coors[0] < x_min:
                 x_min = Coors[0]
-            if Coors[1] > y_max:
-                y_max = Coors[1]
+            if Coors[1] < y_min:
+                y_min = Coors[1]
             if Coors[2] > x_max:
                 x_max = Coors[2]
-            if Coors[3] < y_min:
-                y_min = Coors[3]
+            if Coors[3] > y_max:
+                y_max = Coors[3]
         
         FileHandler.close()
         

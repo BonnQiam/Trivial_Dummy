@@ -13,12 +13,6 @@
 #define x_grid_num 8
 #define y_grid_num 20
 
-struct Grid
-{
-    double density_metal;
-    double density_fill;
-};
-
 int main(int argc, char *argv[])
 {
     /*
@@ -30,20 +24,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Read filename from argv[2]
-    std::string filename = argv[2];
-
-    std::cout << "Reading file: " << filename << '\n';
-
-    std::ifstream file(filename);
-    std::vector<std::string> Input;
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        Input.push_back(line);
-    }
-
 #if 1
     //GDSII
     GdsParser::GdsWriter gw (argv[1]);
@@ -52,89 +32,173 @@ int main(int argc, char *argv[])
     gw.gds_write_strname("dummies");
 #endif
 
-#if 1
-    // Test: display Input
-    for (int i = 0; i < Input.size(); i++)
+    std::vector<std::vector<std::string>>   layer_input;
+    std::vector<int>                        layer;
+    std::vector<std::string>                overlay_input, fill_output;
+
+    // Read filename from argv[2]
+    std::string filename = argv[2];
+
+    std::cout << "Reading file: " << filename << '\n';
+
+    std::ifstream file(filename);
+    std::vector<std::string> input;// load the content of the 'file'
+
+#if 0
+    if (!file) {
+        std::cerr << "Could not open file: " << filename_1 << '\n';
+        exit(1);
+    }
+#endif
+
+    std::string line;
+    while (std::getline(file, line))
     {
-        std::cout << Input[i] << std::endl;
-    }
-#endif 
+        if(line == "<Layer>"){
+            std::getline(file, line);
+            layer.push_back(std::stoi(line));
 
-    /*
-     * ******************************************* Insert
-     */
+            layer_input.push_back(std::vector<std::string>());
 
-    std::vector<std::vector<double>>    density_load;
-    LoadFillObj(Input[0], density_load, 2);
-    LoadFillObj(Input[1], density_load, 4);
-    LoadFillObj(Input[2], density_load, 2);
+            while(std::getline(file, line)){
+                if(line == "</Layer>"){
+                    break;
+                }
 
-    std::vector<double>                density_obj;
-
-    for(int i = 0; i < density_load.size(); i++){
-        for(int j = 0; j < density_load[i].size(); j++){
-            density_obj.push_back(density_load[i][j]);
-        }
-    }
-    density_load.clear();
-
-    std::vector<double>                 density_fill;
-
-    int Num_loop = 2 + 4 + 2;
-    int Layer;
-
-    //std::cout << "Density_Obj.size() = " << density_obj.size() << std::endl;
-
-    for(int i = 0; i < Num_loop; i++){
-        //std::cout << "i = " << i << std::endl;
-
-        std::vector<std::vector<Rect<int>>> Fillable_rect, dummy;
-
-        if(i < 2)
-            Layer = 10001;
-        else if(i < 6)
-            Layer = 10002;
-        else
-            Layer = 10003;
-
-        LoadRectangle(Input[i + 3], Fillable_rect);
-
-        int offset = i*Num_grid;
-
-        Layer_Rectangle_Generate(density_obj, offset, Fillable_rect, dummy, density_fill);
-
-#if 1
-        for(int j = 0; j < dummy.size(); j++){
-            for(int k = 0; k < dummy[j].size(); k++){
-                
-                std::vector<int> vx(5), vy(5);
-
-                vx[0] = dummy[j][k].getBL().getX();
-                vy[0] = dummy[j][k].getBL().getY();
-
-                vx[1] = dummy[j][k].getBL().getX();
-                vy[1] = dummy[j][k].getTR().getY();
-
-                vx[2] = dummy[j][k].getTR().getX();
-                vy[2] = dummy[j][k].getTR().getY();
-
-                vx[3] = dummy[j][k].getTR().getX();
-                vy[3] = dummy[j][k].getBL().getY();
-
-                vx[4] = dummy[j][k].getBL().getX();
-                vy[4] = dummy[j][k].getBL().getY();
-
-                gw.write_boundary(Layer, 0, vx, vy, false);
+                layer_input.back().push_back(line);
             }
         }
-#endif
+        else if(line == "<Overlay>"){
+            while(std::getline(file, line)){
+                if(line == "</Overlay>"){
+                    break;
+                }
+
+                overlay_input.push_back(line);
+            }
+        }
+        else if(line == "<Fill>"){
+            while(std::getline(file, line)){
+                if(line == "</Fill>"){
+                    break;
+                }
+
+                fill_output.push_back(line);
+            }
+        }
+
+        if(file.eof()){
+            break;
+        }
     }
 
+    file.close();
+
+    int layer_num = layer_input.size();
+
 #if 1
-    gw.gds_write_endstr();
-    gw.gds_write_endlib();
+    for(int i = 0; i < layer.size(); i++){
+        std::cout << "Layer " << i << ": " << layer[i] << std::endl;
+    }
+
+    for(int i = 0; i < layer_num; i++){
+        std::cout << "Layer " << i << std::endl;
+        for(int j = 0; j < layer_input[i].size(); j++){
+            std::cout << layer_input[i][j] << std::endl;
+        }
+    }
+
+    std::cout << "Overlay" << std::endl;
+    for(int i=0; i < overlay_input.size(); i++){
+        std::cout << overlay_input[i] << std::endl;
+    }
 #endif
 
+#if 1
+    /*
+     * ************************************************************************ Insert
+     */
+    //for(int i = 0; i < layer_num; i++){
+    for(int i = 0; i < 1; i++){
+        std::cout << "Layer " << i << std::endl;
+
+        std::vector<std::ifstream> loading_files;
+        
+        for(int j = 0; j < layer_input[i].size(); j++){
+            loading_files.push_back(std::ifstream(layer_input[i][j]));
+        }
+        // Grid Insersion
+        int grid_count = 1;
+        std::vector<int> load_flags(layer_input[i].size(), 0);
+        while(1){
+            Grid grid;
+#if 0
+            if(grid_count > 160)
+                break;
+#endif
+            load_flags[0] = parse_No_Fill_Density(loading_files[0], grid, layer[i]);
+            load_flags[1] = LoadFillObj(loading_files[1], grid);
+
+            for(int j = 2; j < loading_files.size(); j++){
+                load_flags[j] = LoadRectangle(loading_files[j], grid);
+            }
+
+            if(load_flags == std::vector<int>(loading_files.size(), 1)){
+                break;
+            }
+            else if(load_flags == std::vector<int>(loading_files.size(), 0)){
+                Layer_Rectangle_Generate(grid);
+                grid.density_report();
+                grid.Fill_rect_output(fill_output[i]);
+                std::cout << "Grid " << grid_count << " is inserted" << std::endl;
+
+                // output to GDSII
+                for(int j = 0; j < grid.Fill_rect.size(); j++){
+                    for(int k = 0; k < grid.Fill_rect[j].size(); k++){
+                        std::vector<int> vx(5), vy(5);
+
+                        vx[0] = grid.Fill_rect[j][k].getBL().getX();
+                        vy[0] = grid.Fill_rect[j][k].getBL().getY();
+
+                        vx[1] = grid.Fill_rect[j][k].getBL().getX();
+                        vy[1] = grid.Fill_rect[j][k].getTR().getY();
+
+                        vx[2] = grid.Fill_rect[j][k].getTR().getX();
+                        vy[2] = grid.Fill_rect[j][k].getTR().getY();
+
+                        vx[3] = grid.Fill_rect[j][k].getTR().getX();
+                        vy[3] = grid.Fill_rect[j][k].getBL().getY();
+
+                        vx[4] = grid.Fill_rect[j][k].getBL().getX();
+                        vy[4] = grid.Fill_rect[j][k].getBL().getY();
+
+                        gw.write_boundary(layer[i], 0, vx, vy, false);
+                    }
+                }
+
+            }
+            else{
+                std::cout << "Something wroing in the loading files" << std::endl;
+                for(int j = 0; j < loading_files.size(); j++){
+                    std::cout << "Load flag " << j << ": " << load_flags[j] << std::endl;
+                }
+            }
+            
+            grid_count++;
+        }
+
+        for(int j = 0; j < loading_files.size(); j++){
+            loading_files[j].close();
+        }
+    }
+#endif
+    
+    gw.gds_write_endstr();
+    gw.gds_write_endlib();
+
+    return 1;
+
+#if 0
     /*
      * ******************************************* Evaluation
      */
@@ -249,7 +313,7 @@ int main(int argc, char *argv[])
     std::cout << "Overlay_score = " << Overlay_score << std::endl;
     std::cout << "Line_score = " << Line_score << std::endl;
     std::cout << "Overall_score = " << (alpha_std * Std_score + alpha_outlier * Outlier_score + alpha_overlay * Overlay_score + alpha_line * Line_score) << std::endl;
-    
+#endif
 
     return 0;
 }
