@@ -14,10 +14,11 @@
 #include "../Overlay/Interval_Tree.hpp"
 //! Attention ---- When use the "Interval_Tree.hpp", adjust the struct "Interval"
 
-#define Num_grid 160
-#define x_grid_num 8
-#define y_grid_num 20
+//#define Num_grid 160
+//#define x_grid_num 8
+//#define y_grid_num 20
 
+#define unit            1000  // unit: nm
 #define grid_size       20000
 //! Design rule
 #define minimum_w       32    // unit: nm
@@ -36,6 +37,9 @@ struct Final_Grid{
 };
 
 struct Grid{
+    Coor<int>           grid_BL;
+    Coor<int>           grid_TR;
+
     double              density_metal;
     int                 size; // 2 or 4
     int                 layer;
@@ -141,6 +145,8 @@ int parse_No_Fill_Density(std::ifstream &file, Grid &grid, int layer){
         std::cout << "Wrong format in file" << std::endl;
         exit(1);// Error
     }
+    grid.grid_BL = Coor<int>(d.x*unit, d.y*unit);
+    grid.grid_TR = Coor<int>(d.x*unit + grid_size, d.y*unit + grid_size);
 
     grid.density_metal = d.val1;
     if(layer == Layer_2){
@@ -277,7 +283,34 @@ int LoadRectangle(std::ifstream &file, Grid &grid){
                 x2 = temp;
             }
 
-            Rect<int> tmp(Coor<int>(x1, y1), Coor<int>(x2, y2));
+            //Rect<int> tmp(Coor<int>(x1, y1), Coor<int>(x2, y2));
+            Coor<int> bl(x1, y1), tr(x2, y2);
+
+            // Rectanlge legalize
+            int up, down, left, right;// distance to the boundary
+            up    = grid.grid_TR.getY() - tr.getY();
+            down  = bl.getY() - grid.grid_BL.getY();
+            left  = bl.getX() - grid.grid_BL.getX();
+            right = grid.grid_TR.getX() - tr.getX();
+
+            up    = (up >= minimum_s/2) ? 0 : (minimum_s/2 - up);
+            down  = (down >= minimum_s/2) ? 0 : (minimum_s/2 - down);
+            left  = (left >= minimum_s/2) ? 0 : (minimum_s/2 - left);
+            right = (right >= minimum_s/2) ? 0 : (minimum_s/2 - right);
+
+            bl.addToX(left);
+            bl.addToY(down);
+            tr.addToX(-right);
+            tr.addToY(-up);
+
+            int width = tr.getX() - bl.getX();
+            int height = tr.getY() - bl.getY();
+
+            if(width < minimum_w || height < minimum_w || width * height < minimum_area){
+                continue;
+            }
+
+            Rect<int> tmp(bl, tr);
             //List_Rectangles.push_back(tmp);
             grid.Fillable_rect.back().push_back(tmp);
         }
@@ -358,7 +391,7 @@ void Layer_Rectangle_Generate(Grid &grid){
                 continue;
             }
 
-            for(int j=index[i]; j < X_intervals[i].size(); j++){
+            for(int j = index[i]; j < X_intervals[i].size(); j++){
                 //Window setting
                 Coor<int> bl = X_intervals[i][j].r->getBL();
                 Coor<int> tr = X_intervals[i][j].r->getTR();
@@ -382,18 +415,21 @@ void Layer_Rectangle_Generate(Grid &grid){
                         interval.y == X_intervals[i][j].r->getBL().getY()){
                         continue;
                     }
-
                     Rect<int> R = Rectangle_intersection(*interval.r, window);
 
                     //Rect<int> R = Rectangle_intersection(*interval.r, *X_intervals[i].r);
 
                     if(R.Area() > 0){
-                        overlap_rects.push_back(R);
+                        overlap_rects.push_back(*interval.r);
                     }
                 }
 
                 //distance between the rectangle and the overlap rectangles
                 int up=minimum_s, down=minimum_s, left=minimum_s, right=minimum_s;
+                int up_least2=minimum_s, 
+                    down_least2=minimum_s, 
+                    left_least2=minimum_s, 
+                    right_least2=minimum_s;
 
                 //get the original rectangle
                 bl.addToX(minimum_s);
@@ -402,59 +438,151 @@ void Layer_Rectangle_Generate(Grid &grid){
                 tr.addToY(-minimum_s);
 
                 for(auto &rect: overlap_rects){
+
                     Coor<int> rect_tr = rect.getTR();
                     Coor<int> rect_bl = rect.getBL();
 
-                    if(rect_tr.getX() < bl.getX()){
+                    if(rect_tr.getX() <= bl.getX()){
                         // rect is on the left
                         if(rect_bl.getY() > tr.getY() || rect_tr.getY() < bl.getY()){
                             continue;
                         }
                         else{
-                            left = std::min(left, bl.getX() - rect_tr.getX());
+                            int tmp = bl.getX() - rect_tr.getX();
+
+                            if(tmp < left){
+                                left_least2 = left;
+                                left = tmp;
+                            }
+                            else if(tmp > left && tmp < left_least2){
+                                left_least2 = tmp;
+                            }
+
+                            //left = std::min(left, bl.getX() - rect_tr.getX());
                         }
                     }
-                    else if(rect_bl.getX() > tr.getX()){
+                    else if(rect_bl.getX() >= tr.getX()){
                         // rect is on the right
                         if(rect_bl.getY() > tr.getY() || rect_tr.getY() < bl.getY()){
                             continue;
                         }
                         else{
-                            right = std::min(right, rect_bl.getX() - tr.getX());
+                            int tmp = rect_bl.getX() - tr.getX();
+
+                            if(tmp < right){
+                                right_least2 = right;
+                                right = tmp;
+                            }
+                            else if(tmp > right && tmp < right_least2){
+                                right_least2 = tmp;
+                            }
+
+                            //right = std::min(right, rect_bl.getX() - tr.getX());
                         }
                     }
-                    else{
-                        if(rect_bl.getY() > tr.getY()){
+                    else{   
+                        if(rect_bl.getY() >= tr.getY()){
                             // rect is on the top
-                            up = std::min(up, rect_bl.getY() - tr.getY());
+                            int tmp = rect_bl.getY() - tr.getY();
+
+                            if(tmp < up){
+                                up_least2 = up;
+                                up = tmp;
+                            }
+                            else if(tmp > up && tmp < up_least2){
+                                up_least2 = tmp;
+                            }
+
+                            //up = std::min(up, rect_bl.getY() - tr.getY());
                         }
-                        else if(rect_tr.getY() < bl.getY()){
+                        else if(rect_tr.getY() <= bl.getY()){
                             // rect is on the bottom
-                            down = std::min(down, bl.getY() - rect_tr.getY());
-                        }
-                        else{
-                            // rect is inside the window
-                            continue;
+                            int tmp = bl.getY() - rect_tr.getY();
+
+                            if(tmp < down){
+                                down_least2 = down;
+                                down = tmp;
+                            }
+                            else if(tmp > down && tmp < down_least2){
+                                down_least2 = tmp;
+                            }
+
+                            //down = std::min(down, bl.getY() - rect_tr.getY());
                         }
                     }
                 }
 
-#if 0
-                std::cout << "===================================" << std::endl;
-                std::cout << "up: " << up << std::endl;
-                std::cout << "down: " << down << std::endl;
-                std::cout << "left: " << left << std::endl;
-                std::cout << "right: " << right << std::endl;
-                std::cout << "overlap_rects.size(): " << overlap_rects.size() << std::endl;
-                std::cout << "===================================" << std::endl;
-#endif
                 //adjust the rectangle
                 if(overlap_rects.size()){
                     // handling the special case
+
+                    //std::cout << "up = " << up << std::endl;
+                    //std::cout << "down = " << down << std::endl;
+                    //std::cout << "left = " << left << std::endl;
+                    //std::cout << "right = " << right << std::endl;
+
+                    if(up ==0 && up_least2 >= minimum_s){
+                        up = minimum_s;
+                    }
+                    else if(up == 0 && up_least2 < minimum_s){
+                        up = 0;
+                    }
+                    else if(up != 0){
+                        up = up;
+                    }
+
+                    if(down == 0 && down_least2 >= minimum_s){
+                        down = minimum_s;
+                    }
+                    else if(down == 0 && down_least2 < minimum_s){
+                        down = 0;
+                    }
+                    else if(down != 0){
+                        down = down;
+                    }
+
+                    if(left == 0 && left_least2 >= minimum_s){
+                        left = minimum_s;
+                    }
+                    else if(left == 0 && left_least2 < minimum_s){
+                        left = 0;
+                    }
+                    else if(left != 0){
+                        left = left;
+                    }
+
+                    if(right == 0 && right_least2 >= minimum_s){
+                        right = minimum_s;
+                    }
+                    else if(right == 0 && right_least2 < minimum_s){
+                        right = 0;
+                    }
+                    else if(right != 0){
+                        right = right;
+                    }
+
+#if 0
+                    if(up == 0 && up_least2 != minimum_s){
+                        up = up_least2;
+                    }
+
+                    if(down == 0 && down_least2 != minimum_s){
+                        down = down_least2;
+                    }
+
+                    if(left == 0 && left_least2 != minimum_s){
+                        left = left_least2;
+                    }
+
+                    if(right == 0 && right_least2 != minimum_s){
+                        right = right_least2;
+                    }
+
                     up = (up==0) ? minimum_s : up;
                     down = (down==0) ? minimum_s : down;
                     left = (left==0) ? minimum_s : left;
                     right = (right==0) ? minimum_s : right;
+#endif
 
                     X_intervals[i][j].r->setBL(
                         X_intervals[i][j].r->getBL().getX() + minimum_s - left, 
@@ -468,8 +596,62 @@ void Layer_Rectangle_Generate(Grid &grid){
                 int width = X_intervals[i][j].r->getTR().getX() - X_intervals[i][j].r->getBL().getX();
                 int height = X_intervals[i][j].r->getTR().getY() - X_intervals[i][j].r->getBL().getY();
                 if(X_intervals[i][j].r->Area() < minimum_area || width < minimum_w || height < minimum_w){
+                    std::cout << "Legalization failed" << std::endl;
                     continue;
                 }
+
+#if 1
+                Coor<int> check_bl1(105065, 272059);
+                Coor<int> check_tr1(105472, 272116);
+
+                Coor<int> check_bl2(105065, 271892);
+                Coor<int> check_tr2(105307, 272052);
+
+                if(check_bl1 == X_intervals[i][j].r->getBL() && check_tr1 == X_intervals[i][j].r->getTR()){
+                    std::cout << "Check 1" << std::endl;
+
+                    std::cout << "Size of overlap_rects = " << overlap_rects.size() << std::endl;
+
+                    std::cout << "up = " << up << std::endl;
+                    std::cout << "down = " << down << std::endl;
+                    std::cout << "left = " << left << std::endl;
+                    std::cout << "right = " << right << std::endl;
+
+                    std::cout << "up_least2 = " << up_least2 << std::endl;
+                    std::cout << "down_least2 = " << down_least2 << std::endl;
+                    std::cout << "left_least2 = " << left_least2 << std::endl;
+                    std::cout << "right_least2 = " << right_least2 << std::endl;
+
+                    for(auto &rect: overlap_rects){
+                        std::cout << "Overlap rect: ";
+                        std::cout << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
+                        std::cout << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
+                    }
+                }
+                else if(check_bl2 == X_intervals[i][j].r->getBL() && check_tr2 == X_intervals[i][j].r->getTR()){
+                    std::cout << "Check 2" << std::endl;
+
+                    std::cout << "Size of overlap_rects = " << overlap_rects.size() << std::endl;
+
+                    std::cout << "up = " << up << std::endl;
+                    std::cout << "down = " << down << std::endl;
+                    std::cout << "left = " << left << std::endl;
+                    std::cout << "right = " << right << std::endl;
+
+                    std::cout << "up_least2 = " << up_least2 << std::endl;
+                    std::cout << "down_least2 = " << down_least2 << std::endl;
+                    std::cout << "left_least2 = " << left_least2 << std::endl;
+                    std::cout << "right_least2 = " << right_least2 << std::endl;
+
+                    for(auto &rect: overlap_rects){
+                        std::cout << "Overlap rect: ";
+                        std::cout << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
+                        std::cout << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
+                    }
+
+                }
+#endif
+
 
                 if(X_intervals[i][j].r->Area() <= Fill_targets[i]){
                     //insert the rectangle
@@ -506,6 +688,10 @@ void Layer_Rectangle_Generate(Grid &grid){
 
                     break;
                 }
+            }
+
+            if(index[i] == X_intervals[i].size()){
+                Fill_targets[i] = 0;
             }
         }
 

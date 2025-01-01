@@ -35,6 +35,7 @@ int main(int argc, char *argv[])
     std::vector<std::vector<std::string>>   layer_input;
     std::vector<int>                        layer;
     std::vector<std::string>                overlay_input, fill_output;
+    int                                     x_num, y_num, grid_num;
 
     // Read filename from argv[2]
     std::string filename = argv[2];
@@ -52,6 +53,17 @@ int main(int argc, char *argv[])
 #endif
 
     std::string line;
+    
+    std::getline(file, line);
+    x_num = std::stoi(line);
+    std::cout << "x_num = " << x_num << std::endl;
+
+    std::getline(file, line);
+    y_num = std::stoi(line);
+    std::cout << "y_num = " << y_num << std::endl;
+
+    grid_num = x_num * y_num;
+
     while (std::getline(file, line))
     {
         if(line == "<Layer>"){
@@ -118,8 +130,8 @@ int main(int argc, char *argv[])
     /*
      * ************************************************************************ Insert
      */
-    //for(int i = 0; i < layer_num; i++){
-    for(int i = 0; i < 1; i++){
+    for(int i = 0; i < layer_num; i++){
+    //for(int i = 1; i < 2; i++){
         std::cout << "Layer " << i << std::endl;
 
         std::vector<std::ifstream> loading_files;
@@ -132,10 +144,13 @@ int main(int argc, char *argv[])
         std::vector<int> load_flags(layer_input[i].size(), 0);
         while(1){
             Grid grid;
-#if 0
-            if(grid_count > 160)
+
+#if 1
+            if(grid_count > grid_num){
                 break;
+            }
 #endif
+
             load_flags[0] = parse_No_Fill_Density(loading_files[0], grid, layer[i]);
             load_flags[1] = LoadFillObj(loading_files[1], grid);
 
@@ -149,9 +164,10 @@ int main(int argc, char *argv[])
             else if(load_flags == std::vector<int>(loading_files.size(), 0)){
                 Layer_Rectangle_Generate(grid);
                 grid.density_report();
-                grid.Fill_rect_output(fill_output[i]);
+                //grid.Fill_rect_output(fill_output[i]);
                 std::cout << "Grid " << grid_count << " is inserted" << std::endl;
 
+#if 1
                 // output to GDSII
                 for(int j = 0; j < grid.Fill_rect.size(); j++){
                     for(int k = 0; k < grid.Fill_rect[j].size(); k++){
@@ -175,7 +191,7 @@ int main(int argc, char *argv[])
                         gw.write_boundary(layer[i], 0, vx, vy, false);
                     }
                 }
-
+#endif
             }
             else{
                 std::cout << "Something wroing in the loading files" << std::endl;
@@ -195,8 +211,6 @@ int main(int argc, char *argv[])
     
     gw.gds_write_endstr();
     gw.gds_write_endlib();
-
-    return 1;
 
 #if 0
     /*
