@@ -287,12 +287,10 @@ int main(int argc, char *argv[])
     std::vector<double> Line_Mean;
     Line_Mean.resize(x_grid_num*3);
 
-    for(int start_index = 0; start_index < x_grid_num; start_index += y_grid_num){
+    for(int start_index = 0; start_index < x_grid_num; start_index++){
         for(int i = start_index; i < y_grid_num; i++){
             Line_Mean[start_index] += Grids[start_index*y_grid_num + i].density_sum;
-
             Line_Mean[start_index + x_grid_num] += Grids[start_index*y_grid_num + i + grid_num].density_sum;
-
             Line_Mean[start_index + 2*x_grid_num] += Grids[start_index*y_grid_num + i + 2*grid_num].density_sum;
         }
     }
@@ -305,12 +303,10 @@ int main(int argc, char *argv[])
 
     double Line_Sum1 = 0.0, Line_Sum2 = 0.0, Line_Sum3 = 0.0;
 
-    for(int start_index = 0; start_index < x_grid_num; start_index += y_grid_num){
+    for(int start_index = 0; start_index < x_grid_num; start_index ++){
         for(int i = start_index; i < y_grid_num; i++){
             Line_Sum1 += std::abs(Grids[start_index*y_grid_num + i].density_sum - Line_Mean[start_index]);
-
             Line_Sum2 += std::abs(Grids[start_index*y_grid_num + i + grid_num].density_sum - Line_Mean[start_index + x_grid_num]);
-
             Line_Sum3 += std::abs(Grids[start_index*y_grid_num + i + 2*grid_num].density_sum - Line_Mean[start_index + 2*x_grid_num]);
         }
     }

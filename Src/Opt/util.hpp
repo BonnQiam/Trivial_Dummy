@@ -12,6 +12,7 @@
 //contest configure: the window size is 20 microns, the gdsii unit si 1 nm, i.e., 0.001 micron
 //#define grid_size  20000
 
+#define min_density 1e-8
 struct Grid_Coor {
     int x;
     int y;
@@ -85,6 +86,7 @@ void parse_Fillable_Density(const std::string& filename, std::vector<double> &De
         if (!(iss >> d)) { 
             break; // Error
         }
+
         Density_Fillable.push_back(d);
     }
 

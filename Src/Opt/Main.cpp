@@ -4,8 +4,6 @@
 #include <time.h>
 #include <random>
 
-#define min_density 1e-8
-
 int main(int argc, char *argv[])
 {
     /*
@@ -100,14 +98,14 @@ int main(int argc, char *argv[])
         if (index < Num_grid)
         {
             offset = 0;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Dummy_Dummy_M1[index - offset];
         }
         else if (index >= Num_grid && index < 2 * Num_grid)
         {
             offset = Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Dummy_Wire_M1[index - offset];
 
@@ -115,35 +113,35 @@ int main(int argc, char *argv[])
         else if (index >= 2 * Num_grid && index < 3 * Num_grid)
         {
             offset = 2 * Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Dummy_Dummy_Dummy_M2[index - offset];
         }
         else if (index >= 3 * Num_grid && index < 4 * Num_grid)
         {
             offset = 3 * Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Dummy_Dummy_Wire_M2[index - offset];
         }
         else if (index >= 4 * Num_grid && index < 5 * Num_grid)
         {
             offset = 4 * Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Wire_Dummy_Dummy_M2[index - offset];
         }
         else if (index >= 5 * Num_grid && index < 6 * Num_grid)
         {
             offset = 5 * Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Wire_Dummy_Wire_M2[index - offset];
         }
         else if (index >= 6 * Num_grid && index < 7 * Num_grid)
         {
             offset = 6 * Num_grid;
-            //xl[index] = 0.0;
+            xl[index] = 0.0;
             xl[index] = min_density;
             xu[index] = Dummy_Dummy_M3[index - offset];
         }
@@ -160,15 +158,26 @@ int main(int argc, char *argv[])
         //random generte xi value between xl and xu
         //xi[index] = xl[index] + (xu[index] - xl[index]) * rand() / (RAND_MAX + 1.0);
         //xi[index] = xu[index];
+
+        if(xu[index] < xl[index])
+            xu[index] = xl[index];
+
         index++;
     }
 
     Dvector gl(1), gu(1);
-    gl[0] = 0.;
-    //gu[0] = 1.;
-    gu[0] = 1e-5;
-    //gu[0] = 1e-1;
+    
+    // s
+    //gl[0] = 0.;
+    //gu[0] = 1e-5;
+
+    // b
+    //gl[0] = 0.;
     //gu[0] = 0.5;
+
+    // m
+    gl[0] = 0.;
+    gu[0] = 0.7;
 
     FG_eval fg_eval(Metal, Overlay, Num_grid);
 
@@ -197,6 +206,7 @@ int main(int argc, char *argv[])
      * ******************************************* Feasibility check
      */
 
+#if 0
     std::cout << "=====================================================" << std::endl;
 
     for (int i = 0; i < length; i++)
@@ -221,7 +231,7 @@ int main(int argc, char *argv[])
     }
 
     std::cout << "=====================================================" << std::endl;
-
+#endif
     /*
      * ******************************************* Metric - Overlay
      */
