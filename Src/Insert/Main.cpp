@@ -36,6 +36,7 @@ int main(int argc, char *argv[])
     std::vector<int>                        layer;
     std::vector<std::string>                overlay_input, fill_output;
     int                                     x_num, y_num, grid_num;
+    std::vector<Final_Grid>                 Grids;
 
     // Read filename from argv[2]
     std::string filename = argv[2];
@@ -192,6 +193,15 @@ int main(int argc, char *argv[])
                     }
                 }
 #endif
+                Final_Grid final_grid;
+
+                final_grid.density_metal = grid.density_metal;
+                final_grid.layer = layer[i];
+                final_grid.density_fill = grid.density_fill;
+                final_grid.Sum();
+
+                Grids.push_back(final_grid);
+
             }
             else{
                 std::cout << "Something wroing in the loading files" << std::endl;
@@ -208,81 +218,64 @@ int main(int argc, char *argv[])
         }
     }
 #endif
-    
+
+#if 1
     gw.gds_write_endstr();
     gw.gds_write_endlib();
+#endif
 
-#if 0
+#if 1
     /*
      * ******************************************* Evaluation
      */
-   
-    std::vector<double> Density_Metal;
-    parse_No_Fill_Density(Input[11], Density_Metal);
-    parse_No_Fill_Density(Input[12], Density_Metal);
-    parse_No_Fill_Density(Input[13], Density_Metal);
-
-    std::vector<Grid> Grids_1, Grids_2, Grids_3;
-
-    for(int i = 0; i < Num_grid; i++){
-        double density_fill_1 = density_fill[i] + density_fill[i + Num_grid];
-        double density_fill_2 = density_fill[i + 2 * Num_grid] + density_fill[i + 3 * Num_grid] + density_fill[i + 4 * Num_grid] + density_fill[i + 5 * Num_grid];
-        double density_fill_3 = density_fill[i + 6 * Num_grid] + density_fill[i + 7 * Num_grid];
-
-        Grids_1.push_back({Density_Metal[i], density_fill_1});
-        Grids_2.push_back({Density_Metal[i + Num_grid], density_fill_2});
-        Grids_3.push_back({Density_Metal[i + 2 * Num_grid], density_fill_3});
-    }
 
     // Std
     double Mean1 = 0.0, Mean2 = 0.0, Mean3 = 0.0;
     double Std1 = 0.0, Std2 = 0.0, Std3 = 0.0;
 
-    for(int i = 0; i < Num_grid; i++){
-        Mean1 += Grids_1[i].density_metal + Grids_1[i].density_fill;
-        Mean2 += Grids_2[i].density_metal + Grids_2[i].density_fill;
-        Mean3 += Grids_3[i].density_metal + Grids_3[i].density_fill;
+    for(int i = 0; i < grid_num; i++){
+        Mean1 += Grids[i].density_sum;
+        Mean2 += Grids[i+grid_num].density_sum;
+        Mean3 += Grids[i+2*grid_num].density_sum;
     }
 
-    Mean1 = Mean1 / Num_grid;
-    Mean2 = Mean2 / Num_grid;
-    Mean3 = Mean3 / Num_grid;
+    Mean1 = Mean1 / grid_num;
+    Mean2 = Mean2 / grid_num;
+    Mean3 = Mean3 / grid_num;
 
-    for(int i = 0; i < Num_grid; i++){
-        Std1 += (Grids_1[i].density_metal + Grids_1[i].density_fill - Mean1) * (Grids_1[i].density_metal + Grids_1[i].density_fill - Mean1);
-        Std2 += (Grids_2[i].density_metal + Grids_2[i].density_fill - Mean2) * (Grids_2[i].density_metal + Grids_2[i].density_fill - Mean2);
-        Std3 += (Grids_3[i].density_metal + Grids_3[i].density_fill - Mean3) * (Grids_3[i].density_metal + Grids_3[i].density_fill - Mean3);
+    for(int i = 0; i < grid_num; i++){
+        Std1 += (Grids[i].density_sum - Mean1) * (Grids[i].density_sum - Mean1);
+        Std2 += (Grids[i+grid_num].density_sum - Mean2) * (Grids[i+grid_num].density_sum - Mean2);
+        Std3 += (Grids[i+2*grid_num].density_sum - Mean3) * (Grids[i+2*grid_num].density_sum - Mean3);
     }
 
-    Std1 = sqrt(Std1 / Num_grid);
-    Std2 = sqrt(Std2 / Num_grid);
-    Std3 = sqrt(Std3 / Num_grid);
+    Std1 = sqrt(Std1 / grid_num);
+    Std2 = sqrt(Std2 / grid_num);
+    Std3 = sqrt(Std3 / grid_num);
 
     double Std_score = std::max(0.0, 1- (Std1 + Std2 + Std3) / beta_std);
 
     //Outlier
     double Outlier1 = 0.0, Outlier2 = 0.0, Outlier3 = 0.0;
 
-    for(int i = 0; i < Num_grid; i++){
-        Outlier1 += std::max(0.0, std::abs(Grids_1[i].density_metal + Grids_1[i].density_fill - Mean1) - 3 * Std1);
-        Outlier2 += std::max(0.0, std::abs(Grids_2[i].density_metal + Grids_2[i].density_fill - Mean2) - 3 * Std2);
-        Outlier3 += std::max(0.0, std::abs(Grids_3[i].density_metal + Grids_3[i].density_fill - Mean3) - 3 * Std3);
+    for(int i = 0; i < grid_num; i++){
+        Outlier1 += std::max(0.0, std::abs(Grids[i].density_sum - Mean1) - 3 * Std1);
+        Outlier2 += std::max(0.0, std::abs(Grids[i+grid_num].density_sum - Mean2) - 3 * Std2);
+        Outlier3 += std::max(0.0, std::abs(Grids[i+2*grid_num].density_sum - Mean3) - 3 * Std3);
     }
 
     double Outlier_score = std::max(0.0, 1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier);
     
     //Overlay
     std::vector<double> Overlay_12, Overlay_23;
-    parse_Overlay(Input[14], Overlay_12);
-    parse_Overlay(Input[15], Overlay_23);
+    parse_Overlay(overlay_input[0], Overlay_12);
+    parse_Overlay(overlay_input[1], Overlay_23);
 
     double Overlay12 = 0.0, Overlay23 = 0.0;
     
-    for(int i = 0; i < Num_grid; i++){
-        double tmp1 = Grids_1[i].density_fill + Grids_2[i].density_fill 
-                    - Overlay_12[i];
-        double tmp2 = Grids_2[i].density_fill + Grids_3[i].density_fill 
-                    - Overlay_23[i];
+    for(int i = 0; i < grid_num; i++){
+        double tmp1 = Grids[i].density_sum - Overlay_12[i];
+        double tmp2 = Grids[i+grid_num].density_sum - Overlay_23[i];
 
         Overlay12 += std::max(0.0, tmp1);
         Overlay23 += std::max(0.0, tmp2);
@@ -296,9 +289,11 @@ int main(int argc, char *argv[])
 
     for(int start_index = 0; start_index < x_grid_num; start_index += y_grid_num){
         for(int i = start_index; i < y_grid_num; i++){
-            Line_Mean[start_index] += Grids_1[start_index*y_grid_num + i].density_metal + Grids_1[start_index*y_grid_num + i].density_fill;
-            Line_Mean[start_index + x_grid_num] += Grids_2[start_index*y_grid_num + i].density_metal + Grids_2[start_index*y_grid_num + i].density_fill;
-            Line_Mean[start_index + 2*x_grid_num] += Grids_3[start_index*y_grid_num + i].density_metal + Grids_3[start_index*y_grid_num + i].density_fill;
+            Line_Mean[start_index] += Grids[start_index*y_grid_num + i].density_sum;
+
+            Line_Mean[start_index + x_grid_num] += Grids[start_index*y_grid_num + i + grid_num].density_sum;
+
+            Line_Mean[start_index + 2*x_grid_num] += Grids[start_index*y_grid_num + i + 2*grid_num].density_sum;
         }
     }
 
@@ -312,9 +307,11 @@ int main(int argc, char *argv[])
 
     for(int start_index = 0; start_index < x_grid_num; start_index += y_grid_num){
         for(int i = start_index; i < y_grid_num; i++){
-            Line_Sum1 += std::abs(Grids_1[start_index*y_grid_num + i].density_metal + Grids_1[start_index*y_grid_num + i].density_fill - Line_Mean[start_index]);
-            Line_Sum2 += std::abs(Grids_2[start_index*y_grid_num + i].density_metal + Grids_2[start_index*y_grid_num + i].density_fill - Line_Mean[start_index + x_grid_num]);
-            Line_Sum3 += std::abs(Grids_3[start_index*y_grid_num + i].density_metal + Grids_3[start_index*y_grid_num + i].density_fill - Line_Mean[start_index + 2*x_grid_num]);
+            Line_Sum1 += std::abs(Grids[start_index*y_grid_num + i].density_sum - Line_Mean[start_index]);
+
+            Line_Sum2 += std::abs(Grids[start_index*y_grid_num + i + grid_num].density_sum - Line_Mean[start_index + x_grid_num]);
+
+            Line_Sum3 += std::abs(Grids[start_index*y_grid_num + i + 2*grid_num].density_sum - Line_Mean[start_index + 2*x_grid_num]);
         }
     }
 

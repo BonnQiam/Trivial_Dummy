@@ -31,9 +31,17 @@
 
 // For evaluation
 struct Final_Grid{
+    double density_sum;
     double density_metal;
     int layer;
     std::vector<double> density_fill;
+
+    void Sum(){
+        density_sum = density_metal;
+        for(auto &x: density_fill){
+            density_sum += x;
+        }
+    }
 };
 
 struct Grid{
