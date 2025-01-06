@@ -522,6 +522,7 @@ void Layer_Rectangle_Generate(Grid &grid){
 
                 //adjust the rectangle
                 if(overlap_rects.size()){
+#if 1
                     // handling the special case
 
                     //std::cout << "up = " << up << std::endl;
@@ -530,9 +531,15 @@ void Layer_Rectangle_Generate(Grid &grid){
                     //std::cout << "right = " << right << std::endl;
 
                     if(up ==0 && up_least2 >= minimum_s){
-                        up = minimum_s;
+                        //special case 1
+                        // the nearest rectangle contact with the boundary of the cheched rectangle
+                        // the distance between the rectangle and the boundary is larger than minimum_s
+                        up = minimum_s; // Not limit the fill is rectangle
                     }
                     else if(up == 0 && up_least2 < minimum_s){
+                        //special case 2
+                        // the nearest rectangle contact with the boundary of the cheched rectangle
+                        // the distance between the rectangle and the boundary is smaller than minimum_s
                         up = 0;
                     }
                     else if(up != 0){
@@ -568,28 +575,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                     else if(right != 0){
                         right = right;
                     }
-
-#if 0
-                    if(up == 0 && up_least2 != minimum_s){
-                        up = up_least2;
-                    }
-
-                    if(down == 0 && down_least2 != minimum_s){
-                        down = down_least2;
-                    }
-
-                    if(left == 0 && left_least2 != minimum_s){
-                        left = left_least2;
-                    }
-
-                    if(right == 0 && right_least2 != minimum_s){
-                        right = right_least2;
-                    }
-
-                    up = (up==0) ? minimum_s : up;
-                    down = (down==0) ? minimum_s : down;
-                    left = (left==0) ? minimum_s : left;
-                    right = (right==0) ? minimum_s : right;
 #endif
 
                     X_intervals[i][j].r->setBL(
@@ -604,11 +589,21 @@ void Layer_Rectangle_Generate(Grid &grid){
                 int width = X_intervals[i][j].r->getTR().getX() - X_intervals[i][j].r->getBL().getX();
                 int height = X_intervals[i][j].r->getTR().getY() - X_intervals[i][j].r->getBL().getY();
                 if(X_intervals[i][j].r->Area() < minimum_area || width < minimum_w || height < minimum_w){
-                    std::cout << "Legalization failed" << std::endl;
+                    //std::cout << "j = " << j << "in X_intervals[" << i << "] is not legal" << std::endl;
+                    //std::cout << "Legalization failed" << std::endl;
+                    if(overlap_rects.size()){
+                        X_intervals[i][j].r->setBL(
+                            X_intervals[i][j].r->getBL().getX() - minimum_s + left, 
+                            X_intervals[i][j].r->getBL().getY() - minimum_s + down);
+                        X_intervals[i][j].r->setTR(
+                            X_intervals[i][j].r->getTR().getX() + minimum_s - right, 
+                            X_intervals[i][j].r->getTR().getY() + minimum_s - up);
+                    }
+                    index[i] = j + 1;
                     continue;
                 }
 
-#if 1
+#if 0
                 Coor<int> check_bl1(105065, 272059);
                 Coor<int> check_tr1(105472, 272116);
 

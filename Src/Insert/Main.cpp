@@ -37,6 +37,11 @@ int main(int argc, char *argv[])
     std::vector<std::string>                overlay_input, fill_output;
     int                                     x_num, y_num, grid_num;
     std::vector<Final_Grid>                 Grids;
+    std::vector<std::vector<double>>        Layers;
+
+    Layers.push_back(std::vector<double>());
+    Layers.push_back(std::vector<double>());
+    Layers.push_back(std::vector<double>());
 
     // Read filename from argv[2]
     std::string filename = argv[2];
@@ -132,7 +137,7 @@ int main(int argc, char *argv[])
      * ************************************************************************ Insert
      */
     for(int i = 0; i < layer_num; i++){
-    //for(int i = 1; i < 2; i++){
+    //for(int i = 0; i < 1; i++){
         std::cout << "Layer " << i << std::endl;
 
         std::vector<std::ifstream> loading_files;
@@ -148,6 +153,7 @@ int main(int argc, char *argv[])
 
 #if 1
             if(grid_count > grid_num){
+            //if(grid_count > 2){
                 break;
             }
 #endif
@@ -171,7 +177,7 @@ int main(int argc, char *argv[])
 #if 1
                 // output to GDSII
                 for(int j = 0; j < grid.Fill_rect.size(); j++){
-                    for(int k = 0; k < grid.Fill_rect[j].size(); k++){
+                    for(int k = 0; k < grid.Fill_rect[j].size(); k++){                        
                         std::vector<int> vx(5), vy(5);
 
                         vx[0] = grid.Fill_rect[j][k].getBL().getX();
@@ -189,7 +195,7 @@ int main(int argc, char *argv[])
                         vx[4] = grid.Fill_rect[j][k].getBL().getX();
                         vy[4] = grid.Fill_rect[j][k].getBL().getY();
 
-                        gw.write_boundary(layer[i], 0, vx, vy, false);
+                        gw.write_boundary(layer[i], 0, vx, vy, true);
                     }
                 }
 #endif
@@ -202,6 +208,7 @@ int main(int argc, char *argv[])
 
                 Grids.push_back(final_grid);
 
+                Layers[i].push_back(final_grid.density_sum);
             }
             else{
                 std::cout << "Something wroing in the loading files" << std::endl;
@@ -229,6 +236,14 @@ int main(int argc, char *argv[])
      * ******************************************* Evaluation
      */
 
+/*
+    for(int i = 0; i < layer_num; i++){
+        std::cout << "Layer " << i << std::endl;
+        for(int j = 0; j < Layers[i].size(); j++){
+            std::cout << Layers[i][j] << std::endl;
+        }
+    }
+*/
     // Std
     double Mean1 = 0.0, Mean2 = 0.0, Mean3 = 0.0;
     double Std1 = 0.0, Std2 = 0.0, Std3 = 0.0;
@@ -255,6 +270,8 @@ int main(int argc, char *argv[])
 
     double Std_score = std::max(0.0, 1- (Std1 + Std2 + Std3) / beta_std);
 
+    std::cout << "Std: " << Std1+Std2+Std3 << std::endl;
+
     //Outlier
     double Outlier1 = 0.0, Outlier2 = 0.0, Outlier3 = 0.0;
 
@@ -264,7 +281,9 @@ int main(int argc, char *argv[])
         Outlier3 += std::max(0.0, std::abs(Grids[i+2*grid_num].density_sum - Mean3) - 3 * Std3);
     }
 
-    double Outlier_score = std::max(0.0, 1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier);
+    double Outlier_score = std::max(0.0, 1 - (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier);
+
+    std::cout << "Outlier: " << (Outlier1+Outlier2+Outlier3)*(Std1 + Std2 + Std3) << std::endl;
     
     //Overlay
     std::vector<double> Overlay_12, Overlay_23;
@@ -274,8 +293,8 @@ int main(int argc, char *argv[])
     double Overlay12 = 0.0, Overlay23 = 0.0;
     
     for(int i = 0; i < grid_num; i++){
-        double tmp1 = Grids[i].density_sum - Overlay_12[i];
-        double tmp2 = Grids[i+grid_num].density_sum - Overlay_23[i];
+        double tmp1 = Grids[i].density_sum + Grids[i+grid_num].density_sum - Overlay_12[i];
+        double tmp2 = Grids[i+grid_num].density_sum +Grids[i+2*grid_num].density_sum - Overlay_23[i];
 
         Overlay12 += std::max(0.0, tmp1);
         Overlay23 += std::max(0.0, tmp2);
@@ -283,12 +302,14 @@ int main(int argc, char *argv[])
 
     double Overlay_score = std::max(0.0, 1 - (Overlay12 + Overlay23) / beta_overlay);
 
+    std::cout << "Overlay: " << Overlay12+Overlay23 << std::endl;
+
     //Line
     std::vector<double> Line_Mean;
     Line_Mean.resize(x_grid_num*3);
 
     for(int start_index = 0; start_index < x_grid_num; start_index++){
-        for(int i = start_index; i < y_grid_num; i++){
+        for(int i = 0; i < y_grid_num; i++){
             Line_Mean[start_index] += Grids[start_index*y_grid_num + i].density_sum;
             Line_Mean[start_index + x_grid_num] += Grids[start_index*y_grid_num + i + grid_num].density_sum;
             Line_Mean[start_index + 2*x_grid_num] += Grids[start_index*y_grid_num + i + 2*grid_num].density_sum;
@@ -304,7 +325,7 @@ int main(int argc, char *argv[])
     double Line_Sum1 = 0.0, Line_Sum2 = 0.0, Line_Sum3 = 0.0;
 
     for(int start_index = 0; start_index < x_grid_num; start_index ++){
-        for(int i = start_index; i < y_grid_num; i++){
+        for(int i = 0; i < y_grid_num; i++){
             Line_Sum1 += std::abs(Grids[start_index*y_grid_num + i].density_sum - Line_Mean[start_index]);
             Line_Sum2 += std::abs(Grids[start_index*y_grid_num + i + grid_num].density_sum - Line_Mean[start_index + x_grid_num]);
             Line_Sum3 += std::abs(Grids[start_index*y_grid_num + i + 2*grid_num].density_sum - Line_Mean[start_index + 2*x_grid_num]);
@@ -312,6 +333,8 @@ int main(int argc, char *argv[])
     }
 
     double Line_score = std::max(0.0, 1 - (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line);
+
+    std::cout << "Line: " << Line_Sum1+Line_Sum2+Line_Sum3 << std::endl;
 
     // Report
 

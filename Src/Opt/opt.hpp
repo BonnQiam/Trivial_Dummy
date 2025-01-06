@@ -8,7 +8,7 @@
 
 #define Grid_size 20
 
-#if 0
+#if 1
 // factor 4 s
 #define alpha_std 0.2
 #define beta_std 0.077
@@ -36,7 +36,7 @@
 #define y_grid_num 117
 #endif
 
-#if 1
+#if 0
 // factor 2 m
 #define alpha_std 0.2
 #define beta_std 0.53
@@ -83,6 +83,8 @@ public:
         AD<double> Outlier1, Outlier2, Outlier3 = 0.0;
 
         AD<double> Overlay12, Overlay23 = 0.0;
+
+        AD<double> Sum1, Sum2, Sum3 = 0.0;
         
         std::vector<AD<double>> Grid;
 
@@ -125,7 +127,7 @@ public:
          * ******************************************* Metric - Line hotspot
          */
         for (int start_index = 0; start_index < x_grid_num; start_index++){
-            for (int i = start_index; i < y_grid_num; i++){
+            for (int i = 0; i < y_grid_num; i++){
                 Line_Mean[start_index] += Grid[start_index*y_grid_num + i];
                 Line_Mean[start_index + x_grid_num] += Grid[start_index*y_grid_num + i + Num_grid];
                 Line_Mean[start_index + 2 * x_grid_num] += Grid[start_index*y_grid_num + i + 2 * Num_grid];
@@ -139,7 +141,7 @@ public:
         }
 
         for (int start_index = 0; start_index < x_grid_num; start_index++){
-            for (int i = start_index; i < y_grid_num; i++){
+            for (int i = 0; i < y_grid_num; i++){
                 Line_Sum1 += fabs(Grid[start_index*y_grid_num + i] - Line_Mean[start_index]);
                 Line_Sum2 += fabs(Grid[start_index*y_grid_num + i + Num_grid] - Line_Mean[start_index + x_grid_num]);
                 Line_Sum3 += fabs(Grid[start_index*y_grid_num + i + 2 * Num_grid] - Line_Mean[start_index + 2 * x_grid_num]);
@@ -185,21 +187,29 @@ public:
         Overlay23 = Overlay23 * Grid_size * Grid_size;
 
         /*
+         * ******************************************* Metric - Fill sum
+         */
+
+        for (int i = 0; i < Num_grid; i++){
+            Sum1 += x[i] + x[i + Num_grid];
+            Sum2 += x[i + 2 * Num_grid] + x[i + 3 * Num_grid] + x[i + 4 * Num_grid] + x[i + 5 * Num_grid];
+            Sum3 += x[i + 6 * Num_grid] + x[i + 7 * Num_grid];
+        }
+
+        /*
          * ******************************************* Objective function with constraints
          */
 
-        // s
-        //fg[0] = (Overlay12 + Overlay23) / beta_overlay;
-        //fg[1] = (Std1 + Std2 + Std3) / beta_std;
-
-        // b
-        fg[0] = (Overlay12 + Overlay23) / beta_overlay + (Outlier1 + Outlier2 + Outlier3) / beta_outlier;
+        
+        //fg[0] = (Overlay12 + Overlay23) / beta_overlay + (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier + (Sum1 + Sum2 + Sum3);
+        fg[0] = (Overlay12 + Overlay23) / beta_overlay;
         fg[1] = (Std1 + Std2 + Std3) / beta_std;
+        fg[2] = (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier;
 
         //fg[0] = 1.0;
         //fg[0] = (Std1 + Std2 + Std3) / beta_std;
         //fg[0] = (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line;
-        //fg[0] = (Outlier1 + Outlier2 + Outlier3) / beta_outlier;
+        //fg[0] = (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier;
         
         //std::cout << "Objective: " << CppAD::Value(CppAD::Var2Par(fg[0])) << std::endl;
     };

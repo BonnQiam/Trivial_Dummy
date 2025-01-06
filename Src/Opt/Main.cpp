@@ -165,19 +165,21 @@ int main(int argc, char *argv[])
         index++;
     }
 
-    Dvector gl(1), gu(1);
+    // s - Opt specificaion
+    Dvector gl(2), gu(2);
+    gl[0] = 0.;
+    gu[0] = 1e-5;
     
-    // s
-    //gl[0] = 0.;
-    //gu[0] = 1e-5;
+    gl[1] = 0.;
+    gu[1] = 1e-3;
 
-    // b
+    // b  - Opt specificaion
     //gl[0] = 0.;
     //gu[0] = 0.5;
 
     // m
-    gl[0] = 0.;
-    gu[0] = 0.7;
+    //gl[0] = 0.;
+    //gu[0] = 0.7;
 
     FG_eval fg_eval(Metal, Overlay, Num_grid);
 
@@ -306,34 +308,44 @@ int main(int argc, char *argv[])
         Outlier3 += (fabs(Grid3 - Mean3) - 3 * Std3) > 0 ? (fabs(Grid3 - Mean3) - 3 * Std3) : 0;
     }
 
-    double Outlier_metric = (1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier) > 0 ? (1 - (Outlier1 + Outlier2 + Outlier3) / beta_outlier) : 0;
+    double Outlier_metric = (1 - (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier) > 0 ? (1 - (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier) : 0;
     std::cout << "Outlier_metric: " << Outlier_metric << std::endl;
 
     /*
      * ******************************************* Metric - Line hotspot
      */
-    double Line_Sum1, Line_Sum2, Line_Sum3 = 0.0;
+    std::vector<double> Line_Mean1, Line_Mean2, Line_Mean3;
+    double Line_Sum1 = 0.0, Line_Sum2 = 0.0, Line_Sum3 = 0.0;
 
-    for (int start_index = 0; start_index <= (x_grid_num - 1) * y_grid_num; start_index += y_grid_num)
+    for (int start_index = 0; start_index < x_grid_num; start_index++)
     {
-        double Line_Mean1, Line_Mean2, Line_Mean3 = 0.0;
+        double Mean1 = 0.0, Mean2 = 0.0, Mean3 = 0.0;
 
-        for (int i = start_index; i < y_grid_num; i++)
+        for (int i = 0; i < y_grid_num; i++)
         {
-            Line_Mean1 += solution.x[start_index + i] + solution.x[start_index + i + Num_grid] + Metal[start_index + i];
-            Line_Mean2 += solution.x[start_index + i + 2 * Num_grid] + solution.x[start_index + i + 3 * Num_grid] + solution.x[start_index + i + 4 * Num_grid] + solution.x[start_index + i + 5 * Num_grid] + Metal[start_index + i + Num_grid];
-            Line_Mean3 += solution.x[start_index + i + 6 * Num_grid] + solution.x[start_index + i + 7 * Num_grid] + Metal[start_index + i + 2 * Num_grid];
+            Mean1 += solution.x[start_index*y_grid_num + i] + solution.x[start_index*y_grid_num + i + Num_grid] + Metal[start_index*y_grid_num + i];
+            
+            Mean2 += solution.x[start_index*y_grid_num + i + 2*Num_grid] + solution.x[start_index*y_grid_num + i + 3*Num_grid] + solution.x[start_index*y_grid_num + i + 4*Num_grid] + solution.x[start_index*y_grid_num + i + 5*Num_grid] + Metal[start_index*y_grid_num + i + Num_grid];
+
+            Mean3 += solution.x[start_index*y_grid_num + i + 6*Num_grid] + solution.x[start_index*y_grid_num + i + 7*Num_grid] + Metal[start_index*y_grid_num + i + 2*Num_grid];
         }
 
-        Line_Mean1 = Line_Mean1 / y_grid_num;
-        Line_Mean2 = Line_Mean2 / y_grid_num;
-        Line_Mean3 = Line_Mean3 / y_grid_num;
+        Mean1 = Mean1 / y_grid_num;
+        Mean2 = Mean2 / y_grid_num;
+        Mean3 = Mean3 / y_grid_num;
 
-        for (int i = start_index; i < y_grid_num; i++)
+        Line_Mean1.push_back(Mean1);
+        Line_Mean2.push_back(Mean2);
+        Line_Mean3.push_back(Mean3);
+    }
+
+    for (int start_index = 0; start_index < x_grid_num; start_index++)
+    {
+        for (int i = 0; i < y_grid_num; i++)
         {
-            Line_Sum1 += fabs(solution.x[start_index + i] + solution.x[start_index + i + Num_grid] + Metal[start_index + i] - Line_Mean1);
-            Line_Sum2 += fabs(solution.x[start_index + i + 2 * Num_grid] + solution.x[start_index + i + 3 * Num_grid] + solution.x[start_index + i + 4 * Num_grid] + solution.x[start_index + i + 5 * Num_grid] + Metal[start_index + i + Num_grid] - Line_Mean2);
-            Line_Sum3 += fabs(solution.x[start_index + i + 6 * Num_grid] + solution.x[start_index + i + 7 * Num_grid] + Metal[start_index + i + 2 * Num_grid] - Line_Mean3);
+            Line_Sum1 += fabs(solution.x[start_index*y_grid_num + i] + solution.x[start_index*y_grid_num + i + Num_grid] + Metal[start_index*y_grid_num + i] - Line_Mean1[start_index]);
+            Line_Sum2 += fabs(solution.x[start_index*y_grid_num + i + 2*Num_grid] + solution.x[start_index*y_grid_num + i + 3*Num_grid] + solution.x[start_index*y_grid_num + i + 4*Num_grid] + solution.x[start_index*y_grid_num + i + 5*Num_grid] + Metal[start_index*y_grid_num + i + Num_grid] - Line_Mean2[start_index]);
+            Line_Sum3 += fabs(solution.x[start_index*y_grid_num + i + 6*Num_grid] + solution.x[start_index*y_grid_num + i + 7*Num_grid] + Metal[start_index*y_grid_num + i + 2*Num_grid] - Line_Mean3[start_index]);
         }
     }
 
