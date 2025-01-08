@@ -414,8 +414,8 @@ void Layer_Rectangle_Generate(Grid &grid){
                 std::vector<Rect<int>> overlap_rects;
 
                 //check the overlap rectangle by window query
-
-                std::vector<Interval> X_overlap_intervals = X_Tree.Overlap_Query(bl.getX(), tr.getX(), 0);
+                int Debug = 0;
+                std::vector<Interval> X_overlap_intervals = X_Tree.Overlap_Query(bl.getX(), tr.getX(), Debug);
 
                 for(auto &interval: X_overlap_intervals){
                     if(interval.x_start == X_intervals[i][j].r->getBL().getX() &&
@@ -424,8 +424,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                         continue;
                     }
                     Rect<int> R = Rectangle_intersection(*interval.r, window);
-
-                    //Rect<int> R = Rectangle_intersection(*interval.r, *X_intervals[i].r);
 
                     if(R.Area() > 0){
                         overlap_rects.push_back(*interval.r);
@@ -453,6 +451,7 @@ void Layer_Rectangle_Generate(Grid &grid){
                     if(rect_tr.getX() <= bl.getX()){
                         // rect is on the left
                         if(rect_bl.getY() > tr.getY() || rect_tr.getY() < bl.getY()){
+                            //maybe need modify
                             continue;
                         }
                         else{
@@ -465,13 +464,13 @@ void Layer_Rectangle_Generate(Grid &grid){
                             else if(tmp > left && tmp < left_least2){
                                 left_least2 = tmp;
                             }
-
                             //left = std::min(left, bl.getX() - rect_tr.getX());
                         }
                     }
                     else if(rect_bl.getX() >= tr.getX()){
                         // rect is on the right
                         if(rect_bl.getY() > tr.getY() || rect_tr.getY() < bl.getY()){
+                            //maybe need modify
                             continue;
                         }
                         else{
@@ -484,7 +483,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                             else if(tmp > right && tmp < right_least2){
                                 right_least2 = tmp;
                             }
-
                             //right = std::min(right, rect_bl.getX() - tr.getX());
                         }
                     }
@@ -500,7 +498,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                             else if(tmp > up && tmp < up_least2){
                                 up_least2 = tmp;
                             }
-
                             //up = std::min(up, rect_bl.getY() - tr.getY());
                         }
                         else if(rect_tr.getY() <= bl.getY()){
@@ -514,7 +511,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                             else if(tmp > down && tmp < down_least2){
                                 down_least2 = tmp;
                             }
-
                             //down = std::min(down, bl.getY() - rect_tr.getY());
                         }
                     }
@@ -522,7 +518,9 @@ void Layer_Rectangle_Generate(Grid &grid){
 
                 //adjust the rectangle
                 if(overlap_rects.size()){
-#if 1
+#if 0
+                    // if not require the fill is rectangle, we can enable the following code
+
                     // handling the special case
 
                     //std::cout << "up = " << up << std::endl;
@@ -589,8 +587,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                 int width = X_intervals[i][j].r->getTR().getX() - X_intervals[i][j].r->getBL().getX();
                 int height = X_intervals[i][j].r->getTR().getY() - X_intervals[i][j].r->getBL().getY();
                 if(X_intervals[i][j].r->Area() < minimum_area || width < minimum_w || height < minimum_w){
-                    //std::cout << "j = " << j << "in X_intervals[" << i << "] is not legal" << std::endl;
-                    //std::cout << "Legalization failed" << std::endl;
                     if(overlap_rects.size()){
                         X_intervals[i][j].r->setBL(
                             X_intervals[i][j].r->getBL().getX() - minimum_s + left, 
@@ -602,59 +598,6 @@ void Layer_Rectangle_Generate(Grid &grid){
                     index[i] = j + 1;
                     continue;
                 }
-
-#if 0
-                Coor<int> check_bl1(105065, 272059);
-                Coor<int> check_tr1(105472, 272116);
-
-                Coor<int> check_bl2(105065, 271892);
-                Coor<int> check_tr2(105307, 272052);
-
-                if(check_bl1 == X_intervals[i][j].r->getBL() && check_tr1 == X_intervals[i][j].r->getTR()){
-                    std::cout << "Check 1" << std::endl;
-
-                    std::cout << "Size of overlap_rects = " << overlap_rects.size() << std::endl;
-
-                    std::cout << "up = " << up << std::endl;
-                    std::cout << "down = " << down << std::endl;
-                    std::cout << "left = " << left << std::endl;
-                    std::cout << "right = " << right << std::endl;
-
-                    std::cout << "up_least2 = " << up_least2 << std::endl;
-                    std::cout << "down_least2 = " << down_least2 << std::endl;
-                    std::cout << "left_least2 = " << left_least2 << std::endl;
-                    std::cout << "right_least2 = " << right_least2 << std::endl;
-
-                    for(auto &rect: overlap_rects){
-                        std::cout << "Overlap rect: ";
-                        std::cout << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
-                        std::cout << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
-                    }
-                }
-                else if(check_bl2 == X_intervals[i][j].r->getBL() && check_tr2 == X_intervals[i][j].r->getTR()){
-                    std::cout << "Check 2" << std::endl;
-
-                    std::cout << "Size of overlap_rects = " << overlap_rects.size() << std::endl;
-
-                    std::cout << "up = " << up << std::endl;
-                    std::cout << "down = " << down << std::endl;
-                    std::cout << "left = " << left << std::endl;
-                    std::cout << "right = " << right << std::endl;
-
-                    std::cout << "up_least2 = " << up_least2 << std::endl;
-                    std::cout << "down_least2 = " << down_least2 << std::endl;
-                    std::cout << "left_least2 = " << left_least2 << std::endl;
-                    std::cout << "right_least2 = " << right_least2 << std::endl;
-
-                    for(auto &rect: overlap_rects){
-                        std::cout << "Overlap rect: ";
-                        std::cout << "(" << rect.getBL().getX() << ", " << rect.getBL().getY() << "),";
-                        std::cout << "(" << rect.getTR().getX() << ", " << rect.getTR().getY() << ")" << std::endl;
-                    }
-
-                }
-#endif
-
 
                 if(X_intervals[i][j].r->Area() <= Fill_targets[i]){
                     //insert the rectangle

@@ -8,7 +8,7 @@
 
 #define Grid_size 20
 
-#if 1
+#if 0
 // factor 4 s
 #define alpha_std 0.2
 #define beta_std 0.077
@@ -22,7 +22,7 @@
 #define y_grid_num 20
 #endif
 
-#if 0
+#if 1
 // factor 2 b
 #define alpha_std 0.2
 #define beta_std 0.517
@@ -200,11 +200,19 @@ public:
          * ******************************************* Objective function with constraints
          */
 
-        
-        //fg[0] = (Overlay12 + Overlay23) / beta_overlay + (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier + (Sum1 + Sum2 + Sum3);
+#if 0
+        // s
         fg[0] = (Overlay12 + Overlay23) / beta_overlay;
         fg[1] = (Std1 + Std2 + Std3) / beta_std;
         fg[2] = (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier;
+#endif
+
+
+#if 1
+        fg[0] = (Overlay12 + Overlay23) / beta_overlay + (Line_Sum1 + Line_Sum2 + Line_Sum3) / beta_line;
+        fg[1] = (Std1 + Std2 + Std3) / beta_std;
+        fg[2] = (Outlier1 + Outlier2 + Outlier3)*(Std1 + Std2 + Std3) / beta_outlier;
+#endif
 
         //fg[0] = 1.0;
         //fg[0] = (Std1 + Std2 + Std3) / beta_std;

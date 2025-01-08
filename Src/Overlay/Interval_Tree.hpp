@@ -298,14 +298,13 @@ public:
     }
 
 #if 1
-    std::vector<Interval> Overlap_locate_ST(int index, int ST){
+    std::vector<Interval> Overlap_locate_ST(int index, int ST, int Debug){
+        if(Debug)
+            std::cout << "Index = " << index << " in Overlap_locate_ST" << std::endl;
+
         std::vector<Interval> Result;
         
         if(index >= CBT.size()) {
-            return Result;
-        }
-
-        if(CBT[index].value == ST){
             return Result;
         }
 
@@ -313,9 +312,8 @@ public:
 
         if(CBT[index].value > ST) {
             for(auto &Interval : CBT[index].Left_Endpoints){ 
-
 #if 0       
-                if(Interval.x_start == 3305 && Interval.x_end == 3837){
+                if(Interval.x_start == 101396 && Interval.x_end == 101698){
                     std::cout << "Find the interval is [" << Interval.x_start << ", " << Interval.x_end << "] at CBT[" << index << "]" << std::endl;
                 }
                 else if(Interval.x_start == 3305 && Interval.x_end == 3819){
@@ -341,10 +339,10 @@ public:
 
         std::vector<Interval> Temp_Result;
         if(Flag == 0){
-            Temp_Result = Overlap_locate_ST(2 * index, ST);
+            Temp_Result = Overlap_locate_ST(2 * index, ST, Debug);
         }
         else {
-            Temp_Result = Overlap_locate_ST(2 * index + 1, ST);
+            Temp_Result = Overlap_locate_ST(2 * index + 1, ST, Debug);
         }
         
         Result.insert(Result.end(), Temp_Result.begin(), Temp_Result.end());
@@ -352,20 +350,30 @@ public:
         return Result;
     }
 
-    std::vector<Interval> Overlap_locate_ED(int index, int ED){
+    std::vector<Interval> Overlap_locate_ED(int index, int ED, int Debug){
+        if(Debug)
+            std::cout << "Index = " << index << " in Overlap_locate_ED" << std::endl;
+
+        if(Debug && index==66){
+            std::cout << "Check 66" << std::endl;
+            std::cout << "ED = " << ED << std::endl;
+            for(auto &Interval : CBT[index].Left_Endpoints) {
+                std::cout << "The interval is [" << Interval.x_start << ", " << Interval.x_end << "]" << std::endl;
+            }
+        }
+
         std::vector<Interval> Result;
 
         if(index >= CBT.size()) {
             return Result;
         }
 
-        if(CBT[index].value == ED){
-            return Result;
-        }
-
         int Flag = 0;
 
         if(CBT[index].value > ED) {
+            if(Debug)
+                std::cout << "Case 1" << std::endl;
+
             for(auto &Interval : CBT[index].Left_Endpoints) {
                 if(Interval.x_start <= ED) {
                     Result.push_back(Interval);
@@ -375,6 +383,9 @@ public:
             Flag = 0; // check in left child
         }
         else {
+            if(Debug)
+                std::cout << "Case 2" << std::endl;
+
             for(auto &Interval : CBT[index].Right_Endpoints) 
                 Result.push_back(Interval);
 
@@ -386,10 +397,10 @@ public:
         std::vector<Interval> Temp_Result;
 
         if(Flag == 0){
-            Temp_Result = Overlap_locate_ED(2 * index, ED);
+            Temp_Result = Overlap_locate_ED(2 * index, ED, Debug);
         }
         else {
-            Temp_Result = Overlap_locate_ED(2 * index + 1, ED);
+            Temp_Result = Overlap_locate_ED(2 * index + 1, ED, Debug);
         }
 
         Result.insert(Result.end(), Temp_Result.begin(), Temp_Result.end());
@@ -405,12 +416,12 @@ public:
 
         int index = 1;
 
-#if 0
+#if 1
         if(Debug){
             std::vector<Interval> Temp = Traverse_Collect_Interval(1);
-            for(auto &Interval : Temp){
-                if(Interval.x_start == 10604 && Interval.x_end == 16458){
-                    std::cout << "Find the interval is [" << Interval.x_start << ", " << Interval.x_end << "]" << std::endl;
+            for(int i = 1; i < Temp.size(); i++){
+                if(Temp[i].x_start == 101396 && Temp[i].x_end == 101698){
+                    std::cout << "Find the interval is [" << Temp[i].x_start << ", " << Temp[i].x_end << "]" << " in " << i << std::endl;
                 }
             }
         }
@@ -459,6 +470,7 @@ public:
 
         if(Debug == 1){
             std::cout << "The target node is " << index << std::endl;
+            std::cout << "CBT[" << index << "]: " << CBT[index].value << std::endl;
         }
 
         for(auto &Interval : CBT[index].Left_Endpoints) {
@@ -474,7 +486,7 @@ public:
             }
         }
 
-        std::vector<Interval> Left_Result = Overlap_locate_ST(2*index, ST);
+        std::vector<Interval> Left_Result = Overlap_locate_ST(2*index, ST, Debug);
 
         if(Debug==1){
             for(auto &Interval : Left_Result){
@@ -486,7 +498,7 @@ public:
 //        std::cout << "Test-2" << std::endl;
 
 
-        std::vector<Interval> Right_Result = Overlap_locate_ED(2*index+1, ED);
+        std::vector<Interval> Right_Result = Overlap_locate_ED(2*index+1, ED, Debug);
 
         if(Debug==1){
             for(auto &Interval : Right_Result){

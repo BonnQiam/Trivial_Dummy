@@ -6,7 +6,7 @@ build
 log
 
 # Specific ignores
-settings.json
+.vscode
 
 Benchmark/ICCAD_2014
 Benchmark/ICCAD_2018

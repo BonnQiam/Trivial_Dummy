@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
         index++;
     }
 
+#if 0
     // s - Opt specificaion
     Dvector gl(2), gu(2);
     gl[0] = 0.;
@@ -172,14 +173,27 @@ int main(int argc, char *argv[])
     
     gl[1] = 0.;
     gu[1] = 1e-3;
+#endif
 
+#if 1
     // b  - Opt specificaion
-    //gl[0] = 0.;
-    //gu[0] = 0.5;
+    Dvector gl(2), gu(2);
+    gl[0] = 0.;
+    gu[0] = 0.5;
 
+    gl[1] = 0.;
+    gu[1] = 1e-2;
+#endif
+
+#if 0
     // m
-    //gl[0] = 0.;
-    //gu[0] = 0.7;
+    Dvector gl(2), gu(2);
+    gl[0] = 0.;
+    gu[0] = 0.7;
+
+    gl[1] = 0.;
+    gu[1] = 1e-2;
+#endif
 
     FG_eval fg_eval(Metal, Overlay, Num_grid);
 
